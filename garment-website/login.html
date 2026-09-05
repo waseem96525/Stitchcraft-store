@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — StitchCraft</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="login-page">
+  <div class="auth-box login-card">
+    <div class="admin-login-logo"><i class="fas fa-seedling"></i> StitchCraft</div>
+    <p class="auth-sub">One login for shoppers and store admins.</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabUser" onclick="switchLoginTab('user')"><i class="fas fa-bag-shopping"></i> Shopper</button>
+      <button class="auth-tab" id="tabAdmin" onclick="switchLoginTab('admin')"><i class="fas fa-gauge-high"></i> Admin</button>
+    </div>
+    <div class="auth-form" id="userPane">
+      <input type="email" id="luEmail" placeholder="Email address" autocomplete="email">
+      <input type="password" id="luPass" placeholder="Password" autocomplete="current-password">
+      <p class="auth-error" id="luErr"></p>
+      <button class="btn btn-primary btn-block" onclick="doLogin('user')">Login as Shopper</button>
+      <p class="auth-switch">New here? <a href="#" onclick="return goSignup()">Create an account</a></p>
+    </div>
+    <div class="auth-form" id="adminPane" style="display:none">
+      <input type="email" id="laEmail" placeholder="Admin email" autocomplete="email">
+      <input type="password" id="laPass" placeholder="Admin password" autocomplete="current-password">
+      <p class="auth-error" id="laErr"></p>
+      <button class="btn btn-primary btn-block" onclick="doLogin('admin')">Login as Admin</button>
+    </div>
+    <p class="auth-note" id="loginCloudNote"></p>
+    <a href="index.html" class="admin-back-link"><i class="fas fa-arrow-left"></i> Back to Store</a>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/login.js"></script>
+</body>
+</html>

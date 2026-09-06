@@ -718,7 +718,8 @@ function escHtml(s) {
 }
 
 async function initCloud() {
-  if (!cloudEnabled()) return;
+  const ok = await waitForSupabase();
+  if (!ok) return;
   await syncCloudCatalog();
   await refreshAuthUI();
   try {

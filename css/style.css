@@ -484,6 +484,7 @@ body {
   visibility: hidden; opacity: 0; transition: var(--transition);
 }
 .checkout-overlay.active { visibility: visible; opacity: 1; }
+.checkout-overlay.active .checkout-sidebar { transform: translateX(0); }
 .checkout-sidebar {
   position: absolute; top: 0; right: 0; bottom: 0;
   width: 600px; max-width: 100%; background: var(--bg-white);

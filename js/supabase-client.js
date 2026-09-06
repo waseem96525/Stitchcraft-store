@@ -10,13 +10,28 @@ const SUPABASE_ENABLED =
   typeof SUPABASE_ANON_KEY === 'string' && SUPABASE_ANON_KEY.length > 20;
 
 let supa = null;
+let supaReady = false;
 try {
   if (SUPABASE_ENABLED && typeof window !== 'undefined' && window.supabase) {
     supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 } catch (e) { supa = null; }
 
+async function testSupabaseConnection() {
+  if (!supa) return false;
+  try {
+    const { error } = await supa.from('products').select('id').limit(1);
+    return !error;
+  } catch (e) { return false; }
+}
+
 function cloudEnabled() { return !!supa; }
+
+async function waitForSupabase() {
+  if (!supa) { supaReady = false; return false; }
+  supaReady = await testSupabaseConnection();
+  return supaReady;
+}
 
 /* ---------- Auth ---------- */
 

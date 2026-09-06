@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function setupAdminCloud() {
-  cloudMode = cloudEnabled();
+  cloudMode = await waitForSupabase();
   const emailInput = document.getElementById('adminEmail');
   if (emailInput) emailInput.style.display = cloudMode ? 'block' : 'none';
   const pushBtn = document.getElementById('pushCloudBtn');

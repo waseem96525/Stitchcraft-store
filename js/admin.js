@@ -334,15 +334,50 @@ async function renderAdminOrders() {
   const body = document.getElementById('adminOrdersBody');
   if (!body) return;
   const orders = await dbListRecentOrders();
+  const statusLabels = { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered' };
+  const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
   body.innerHTML = orders.length ? orders.map(o => {
     const items = (Array.isArray(o.items) ? o.items : [])
       .map(i => `${escapeHtml(i.name || 'Item')}${i.size ? ' (' + escapeHtml(i.size) + ')' : ''} × ${i.qty}`).join(', ');
     const date = o.created_at ? new Date(o.created_at).toLocaleString() : '';
+    const status = o.status || 'pending';
+    const color = statusColors[status] || '#666';
+    const statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+    const statusOptions = statuses.map(s =>
+      `<option value="${s}" ${s === status ? 'selected' : ''}>${statusLabels[s]}</option>`
+    ).join('');
     return `<tr>
-      <td><strong>#${escapeHtml(o.order_code)}</strong><br><small style="color:var(--text-light)">${escapeHtml(date)}</small></td>
-      <td>${escapeHtml(items)}</td>
-      <td>${escapeHtml(o.name || '')}<br><small style="color:var(--text-light)">${escapeHtml(o.phone || '')}</small></td>
-      <td><strong>₹${Number(o.total || 0).toLocaleString()}</strong></td>
+      <td><strong>#${escapeHtml(o.order_code)}</strong><br><small style="color:var(--text-light)">${escapeHtml(date)}</small><br><span class="order-status-badge" style="background:${color}20;color:${color}">${statusLabels[status]}</span></td>
+      <td>${escapeHtml(items.substring(0, 100))}${items.length > 100 ? '...' : ''}<br><small><a href="#" onclick="showAdminOrderDetail('${escapeHtml(o.order_code)}');return false;">View Full Details</a></small></td>
+      <td>${escapeHtml(o.name || '')}<br><small style="color:var(--text-light)">${escapeHtml(o.phone || '')}</small><br><small>${escapeHtml(o.address || '')}${o.pickupStore ? '<br><em>Pickup: ' + escapeHtml(o.pickupStore) + '</em>' : ''}</small></td>
+      <td><strong>₹${Number(o.total || 0).toLocaleString()}</strong><br><small style="color:var(--text-light)">${escapeHtml(o.payment || '')}</small></td>
+      <td>
+        <select onchange="updateOrderStatus('${escapeHtml(o.order_code)}', this.value)" style="padding:0.4rem;border-radius:6px;border:1px solid var(--border);font-size:0.8rem;width:100%;max-width:120px">
+          ${statusOptions}
+        </select>
+      </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:1.5rem">No orders yet.</td></tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:1.5rem">No orders yet.</td></tr>';
+}
+
+async function updateOrderStatus(orderCode, newStatus) {
+  if (!supa) { showToast('Cloud not connected'); return; }
+  const { error } = await supa.from('orders').update({ status: newStatus }).eq('order_code', orderCode);
+  if (error) { showToast('Failed to update: ' + error.message); return; }
+  showToast('Order status updated to ' + newStatus);
+  renderAdminOrders();
+}
+
+function showAdminOrderDetail(orderCode) {
+  dbListRecentOrders().then(orders => {
+    const order = orders.find(o => o.order_code === orderCode);
+    if (!order) { showToast('Order not found'); return; }
+    const items = Array.isArray(order.items) ? order.items : [];
+    const itemsHtml = items.map(i => `<div style="display:flex;gap:1rem;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+      <img src="${i.img || 'https://via.placeholder.com/50'}" style="width:50px;height:50px;object-fit:cover;border-radius:4px" onerror="this.src='https://via.placeholder.com/50'">
+      <div><strong>${escapeHtml(i.name || 'Product')}</strong><br><small>${i.size ? 'Size: ' + i.size + ' × ' : ''}${i.qty}</small><br><strong>₹${Number(i.price || 0).toLocaleString()}</strong></div>
+    </div>`).join('');
+    const paymentLabels = { upi: 'UPI / GPay / PhonePe', cod: 'Cash on Delivery', card: 'Credit/Debit Card', emi: 'No Cost EMI' };
+    alert(`ORDER DETAILS\n\nOrder: #${order.order_code}\nDate: ${order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}\nStatus: ${order.status || 'pending'}\n\nITEMS:\n${items.map(i => `- ${i.name || 'Product'} (${i.size || 'One Size'}) x${i.qty} = ₹${(i.price || 0) * i.qty}`).join('\n')}\n\nSUBTOTAL: ₹${order.subtotal || 0}\nSHIPPING: ${order.shipping == 0 ? 'Free' : '₹' + order.shipping}\nDISCOUNT: -₹${order.discount || 0}\nTOTAL: ₹${order.total || 0}\n\nPAYMENT: ${paymentLabels[order.payment] || order.payment || 'N/A'}\n\n${order.pickupStore ? 'PICKUP: ' + order.pickupStore : 'DELIVERY:\n' + (order.name || '') + '\n' + (order.address || '') + '\n' + (order.city || '') + ', ' + (order.state || '') + ' - ' + (order.pincode || '') + '\nPhone: ' + (order.phone || '')}`);
+  });
 }

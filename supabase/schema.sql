@@ -47,8 +47,27 @@ create table if not exists public.orders (
   pincode text not null default '',
   payment text not null default '',
   pickup_store text,
+  status text not null default 'pending',
+  status_history jsonb not null default '[]',
   created_at timestamptz not null default now()
 );
+
+-- Add status columns if they don't exist (for existing tables)
+do $$
+begin
+  if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'status') then
+    alter table public.orders add column status text not null default 'pending';
+  end if;
+  if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'status_history') then
+    alter table public.orders add column status_history jsonb not null default '[]';
+  end if;
+end
+$$;
+
+-- Admin can update order status
+drop policy if exists "admin update order status" on public.orders;
+create policy "admin update order status" on public.orders
+  for update using (public.is_admin());
 
 -- ============ AUTO-CREATE PROFILE ON SIGNUP ============
 

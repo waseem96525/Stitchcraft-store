@@ -631,10 +631,13 @@ function placeOrder() {
     if (!document.querySelector('input[name="pickupStore"]:checked')) { showToast('Please select a store for pickup'); return; }
   }
   const orderId = 'SC' + Date.now().toString().slice(-8);
+  const order = buildCloudOrder(orderId);
   document.getElementById('orderId').textContent = orderId;
   document.getElementById('orderSuccess').classList.add('active');
   document.getElementById('checkoutOverlay').classList.remove('active');
-  persistOrderCloud(buildCloudOrder(orderId));
+  document.getElementById('orderSuccess').dataset.orderCode = orderId;
+  document.getElementById('orderSuccess').dataset.fullOrder = JSON.stringify(order);
+  persistOrderCloud(order);
   cart.forEach(item => {
     const p = products.find(pr => pr.id === item.id);
     if (!p) return;
@@ -850,12 +853,126 @@ async function openMyOrders() {
   modal.classList.add('active');
   const orders = await dbListMyOrders();
   if (!orders.length) { box.innerHTML = '<p class="auth-sub">No orders yet.</p>'; return; }
+  const statusLabels = { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered' };
+  const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
   box.innerHTML = orders.map(o => {
     const items = Array.isArray(o.items) ? o.items : [];
-    const desc = items.map(i => `${i.name || 'Item'}${i.size ? ' (' + i.size + ')' : ''} × ${i.qty}`).join(', ');
-    const date = o.created_at ? new Date(o.created_at).toLocaleDateString() : '';
-    return `<div class="order-row"><div class="order-code">#${escHtml(o.order_code)} · ${escHtml(date)}</div><div class="order-meta">${escHtml(desc)}</div><div class="order-total">₹${Number(o.total || 0).toLocaleString()}</div></div>`;
+    const desc = items.slice(0, 2).map(i => `${i.name || 'Item'}${i.size ? ' (' + i.size + ')' : ''} × ${i.qty}`).join(', ');
+    const more = items.length > 2 ? ` +${items.length - 2} more` : '';
+    const date = o.created_at ? new Date(o.created_at).toLocaleString() : '';
+    const status = o.status || 'pending';
+    const color = statusColors[status] || '#666';
+    return `<div class="order-card" onclick="showOrderDetail('${o.order_code}')">
+      <div class="order-card-header">
+        <div>
+          <div class="order-code">#${escHtml(o.order_code)}</div>
+          <div class="order-date">${escHtml(date)}</div>
+        </div>
+        <div class="order-status" style="background:${color}20;color:${color}">${statusLabels[status] || 'Pending'}</div>
+      </div>
+      <div class="order-items-preview">${escHtml(desc)}${escHtml(more)}</div>
+      <div class="order-total-row">Total: <strong>₹${Number(o.total || 0).toLocaleString()}</strong></div>
+      <div class="order-view-detail">View Details →</div>
+    </div>`;
   }).join('');
+}
+
+function showOrderDetail(orderCode) {
+  const modal = document.getElementById('orderDetailModal');
+  if (!modal) return;
+  dbListMyOrders().then(orders => {
+    const order = orders.find(o => o.order_code === orderCode);
+    if (!order) { showToast('Order not found'); return; }
+    const statusLabels = { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered' };
+    const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
+    const status = order.status || 'pending';
+    const color = statusColors[status] || '#666';
+    const items = Array.isArray(order.items) ? order.items : [];
+    const paymentLabels = { upi: 'UPI / GPay / PhonePe', cod: 'Cash on Delivery', card: 'Credit/Debit Card', emi: 'No Cost EMI' };
+    let itemsHtml = items.map(i => `
+      <div class="detail-item">
+        <img src="${i.img || 'https://via.placeholder.com/60'}" alt="" onerror="this.src='https://via.placeholder.com/60'">
+        <div class="detail-item-info">
+          <div class="detail-item-name">${escHtml(i.name || 'Product')}</div>
+          <div class="detail-item-meta">${i.size ? 'Size: ' + escHtml(i.size) : ''} × ${i.qty}</div>
+          <div class="detail-item-price">₹${Number(i.price || 0).toLocaleString()}</div>
+        </div>
+      </div>
+    `).join('');
+    let timelineHtml = '';
+    const history = order.statusHistory || [];
+    history.forEach((step, idx) => {
+      const isActive = step.status === status;
+      const isPast = history.findIndex(h => h.status === status) >= idx;
+      timelineHtml += `
+        <div class="timeline-step ${isPast ? 'past' : ''} ${isActive ? 'active' : ''}">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-label">${step.label}</div>
+            <div class="timeline-date">${step.date ? new Date(step.date).toLocaleString() : 'Pending'}</div>
+          </div>
+        </div>
+      `;
+    });
+    modal.innerHTML = `
+      <div class="order-detail-modal">
+        <div class="detail-header">
+          <h3>Order #${escHtml(order.order_code)}</h3>
+          <button class="modal-close" onclick="closeOrderDetail()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="detail-body">
+          <div class="detail-status-bar" style="background:${color}20;color:${color}">
+            <i class="fas fa-truck"></i> ${statusLabels[status] || 'Pending'}
+          </div>
+          <div class="detail-section">
+            <h4><i class="fas fa-clock"></i> Order Timeline</h4>
+            <div class="timeline">${timelineHtml}</div>
+          </div>
+          <div class="detail-section">
+            <h4><i class="fas fa-box"></i> Items (${items.length})</h4>
+            <div class="detail-items">${itemsHtml}</div>
+          </div>
+          <div class="detail-section">
+            <h4><i class="fas fa-rupee-sign"></i> Order Summary</h4>
+            <div class="detail-summary">
+              <div class="summary-row"><span>Subtotal</span><span>₹${Number(order.subtotal || 0).toLocaleString()}</span></div>
+              <div class="summary-row"><span>Shipping</span><span>${order.shipping == 0 ? 'Free' : '₹' + Number(order.shipping || 0).toLocaleString()}</span></div>
+              ${order.discount > 0 ? `<div class="summary-row discount"><span>Discount</span><span>-₹${Number(order.discount || 0).toLocaleString()}</span></div>` : ''}
+              <div class="summary-row total"><span>Total</span><span>₹${Number(order.total || 0).toLocaleString()}</span></div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <h4><i class="fas fa-credit-card"></i> Payment Method</h4>
+            <p>${paymentLabels[order.payment] || order.payment || 'Not specified'}</p>
+          </div>
+          ${order.pickupStore ? `
+          <div class="detail-section">
+            <h4><i class="fas fa-store"></i> Store Pickup</h4>
+            <p>${escHtml(order.pickupStore)}</p>
+          </div>
+          ` : `
+          <div class="detail-section">
+            <h4><i class="fas fa-truck"></i> Delivery Address</h4>
+            <p>${escHtml(order.name || '')}</p>
+            <p>${escHtml(order.address || '')}</p>
+            <p>${escHtml(order.city || '')}, ${escHtml(order.state || '')} - ${escHtml(order.pincode || '')}</p>
+            <p>Phone: ${escHtml(order.phone || '')}</p>
+          </div>
+          `}
+          <div class="detail-section">
+            <h4><i class="fas fa-calendar"></i> Order Date</h4>
+            <p>${order.created_at ? new Date(order.created_at).toLocaleString() : 'Not available'}</p>
+          </div>
+        </div>
+      </div>
+    `;
+    modal.classList.add('active');
+  });
+}
+
+function closeOrderDetail() {
+  const modal = document.getElementById('orderDetailModal');
+  if (modal) modal.classList.remove('active');
 }
 
 function closeMyOrders() {
@@ -867,7 +984,7 @@ function buildCloudOrder(orderId) {
   const val = id => { const n = document.getElementById(id); return n && n.value ? n.value.trim() : ''; };
   const items = cart.map(item => {
     const pr = products.find(x => x.id === item.id) || {};
-    return { id: item.id, name: pr.name || '', size: cartSizeOf(item), qty: item.qty, price: pr.price || 0 };
+    return { id: item.id, name: pr.name || '', size: cartSizeOf(item), qty: item.qty, price: pr.price || 0, img: pr.img || '' };
   });
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
   const shipping = subtotal >= 999 ? 0 : 99;
@@ -879,6 +996,7 @@ function buildCloudOrder(orderId) {
       if (stores[idx]) pickupStore = stores[idx].name;
     }
   } catch (e) {}
+  const now = new Date().toISOString();
   return {
     orderCode: orderId,
     items, subtotal, shipping,
@@ -888,6 +1006,15 @@ function buildCloudOrder(orderId) {
     city: val('city'), state: val('state'), pincode: val('pincode'),
     payment: (document.querySelector('input[name="payment"]:checked') || {}).value || '',
     pickupStore,
+    status: 'pending',
+    statusHistory: [
+      { status: 'pending', label: 'Order Placed', date: now },
+      { status: 'confirmed', label: 'Confirmed', date: null },
+      { status: 'processing', label: 'Processing', date: null },
+      { status: 'shipped', label: 'Shipped', date: null },
+      { status: 'delivered', label: 'Delivered', date: null }
+    ],
+    orderDate: now
   };
 }
 

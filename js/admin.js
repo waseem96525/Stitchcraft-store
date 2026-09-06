@@ -251,12 +251,15 @@ async function saveProductForm() {
     let res;
     if (editingId != null) res = await dbUpdateProduct(editingId, data);
     else res = await dbInsertProduct(data);
-    if (res.error) { showToast(res.error); return; }
-    showToast(editingId != null ? 'Product updated!' : 'Product added!');
-    closeProductForm();
-    await syncCloudCatalog();
-    renderAdmin();
-    return;
+    if (!res.error) {
+      showToast(editingId != null ? 'Product updated!' : 'Product added!');
+      closeProductForm();
+      await syncCloudCatalog();
+      renderAdmin();
+      return;
+    }
+    showToast('Cloud save failed, saving locally: ' + res.error);
+    cloudMode = false;
   }
   if (editingId != null) {
     const i = products.findIndex(pr => pr.id === editingId);
@@ -277,11 +280,14 @@ async function deleteProduct(id) {
   if (!confirm(`Delete "${p.name}" permanently?`)) return;
   if (cloudMode) {
     const res = await dbDeleteProduct(id);
-    if (res.error) { showToast(res.error); return; }
-    await syncCloudCatalog();
-    renderAdmin();
-    showToast('Product deleted');
-    return;
+    if (!res.error) {
+      await syncCloudCatalog();
+      renderAdmin();
+      showToast('Product deleted');
+      return;
+    }
+    showToast('Cloud delete failed, deleting locally: ' + res.error);
+    cloudMode = false;
   }
   products = products.filter(pr => pr.id !== id);
   saveCatalog();
@@ -293,11 +299,14 @@ async function resetAllProducts() {
   if (cloudMode) {
     if (!confirm('Replace the ENTIRE cloud catalog with the original 18 default products?')) return;
     const res = await dbReplaceAllProducts(DEFAULT_PRODUCTS.map(normalizeProduct));
-    if (res.error) { showToast(res.error); return; }
-    await syncCloudCatalog();
-    renderAdmin();
-    showToast('Cloud catalog reset to defaults');
-    return;
+    if (!res.error) {
+      await syncCloudCatalog();
+      renderAdmin();
+      showToast('Cloud catalog reset to defaults');
+      return;
+    }
+    showToast('Cloud reset failed, resetting locally: ' + res.error);
+    cloudMode = false;
   }
   if (!confirm('Discard ALL admin changes and restore the original 18 products?')) return;
   resetCatalog();
@@ -312,10 +321,13 @@ async function pushLocalToCloud() {
   if (!confirm('Upload this browser\'s catalog to the shared cloud (replaces cloud products)?')) return;
   const local = loadCatalog() || DEFAULT_PRODUCTS;
   const res = await dbReplaceAllProducts(local.map(normalizeProduct));
-  if (res.error) { showToast(res.error); return; }
-  await syncCloudCatalog();
-  renderAdmin();
-  showToast('Catalog pushed to cloud!');
+  if (!res.error) {
+    await syncCloudCatalog();
+    renderAdmin();
+    showToast('Catalog pushed to cloud!');
+    return;
+  }
+  showToast('Cloud push failed: ' + res.error);
 }
 
 async function renderAdminOrders() {

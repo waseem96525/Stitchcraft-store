@@ -1,3 +1,7 @@
 {
-  "rootDirectory": "garment-website"
+  "rootDirectory": "garment-website",
+  "redirects": [
+    { "source": "/admin", "destination": "/admin.html", "permanent": true },
+    { "source": "/login", "destination": "/login.html", "permanent": true }
+  ]
 }

@@ -600,6 +600,25 @@ body {
 .payment-option input:checked + .payment-card { border-color: var(--primary); background: #fdf0f0; }
 .payment-card i { font-size: 1.3rem; color: var(--primary); }
 .payment-card span { font-weight: 500; }
+.payment-section { margin-bottom: 1rem; padding: 1rem; background: var(--bg); border-radius: var(--radius-sm); }
+.upi-details h4, .payment-screenshot-upload h4 { margin: 0 0 0.8rem 0; font-size: 0.95rem; color: var(--text); }
+.upi-details h4 i, .payment-screenshot-upload h4 i { color: var(--primary); margin-right: 0.5rem; }
+.upi-id-box { display: flex; align-items: center; gap: 1rem; padding: 0.8rem; background: var(--bg-white); border: 1px dashed var(--primary); border-radius: var(--radius-sm); margin-bottom: 0.5rem; }
+.upi-id-box p { margin: 0; font-size: 0.9rem; }
+.upi-id-box strong { color: var(--primary); font-size: 1.1rem; }
+.upi-note { font-size: 0.8rem; color: var(--text-light); margin: 0.5rem 0; }
+.screenshot-preview { position: relative; margin-bottom: 0.8rem; }
+.screenshot-preview img { width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.remove-screenshot { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7); color: #fff; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.screenshot-upload-box { display: flex; flex-direction: column; align-items: center; padding: 1.5rem; border: 2px dashed var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition); text-align: center; }
+.screenshot-upload-box:hover { border-color: var(--primary); background: #fdf0f0; }
+.screenshot-upload-box input { display: none; }
+.screenshot-upload-box i { color: var(--text-light); margin-bottom: 0.5rem; }
+.screenshot-upload-box p { margin: 0; font-size: 0.9rem; color: var(--text); }
+.screenshot-upload-box small { font-size: 0.75rem; color: var(--text-light); }
+.card-payment-info, .emi-payment-info { padding: 1rem; background: var(--bg-white); border-radius: var(--radius-sm); }
+.card-payment-info h4, .emi-payment-info h4 { margin: 0 0 0.5rem 0; }
+.card-payment-info p, .emi-payment-info p { margin: 0; font-size: 0.85rem; color: var(--text-light); }
 .checkout-total { border-top: 2px solid var(--border); padding-top: 1rem; margin-bottom: 1.5rem; }
 .total-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.95rem; }
 .total-row.grand-total { font-size: 1.2rem; font-weight: 700; color: var(--primary); border-top: 1px solid var(--border); padding-top: 0.5rem; }

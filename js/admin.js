@@ -346,13 +346,20 @@ async function renderAdminOrders() {
     const statusOptions = statuses.map(s =>
       `<option value="${s}" ${s === status ? 'selected' : ''}>${statusLabels[s]}</option>`
     ).join('');
+    const paymentVerified = o.paymentVerified;
+    const hasScreenshot = !!o.paymentScreenshot;
+    const paymentStatusHtml = o.payment === 'cod'
+      ? '<span style="color:#10b981"><i class="fas fa-check-circle"></i> COD</span>'
+      : hasScreenshot
+        ? `<span style="color:${paymentVerified ? '#10b981' : '#f59e0b'}"><i class="fas ${paymentVerified ? 'fa-check-circle' : 'fa-clock'}"></i> ${paymentVerified ? 'Verified' : 'Pending'}</span> <a href="#" onclick="openScreenshotModal('${escapeHtml(o.order_code)}');return false;"><i class="fas fa-image"></i></a>`
+        : '<span style="color:#ef4444"><i class="fas fa-times-circle"></i> No Screenshot</span>';
     return `<tr>
       <td><strong>#${escapeHtml(o.order_code)}</strong><br><small style="color:var(--text-light)">${escapeHtml(date)}</small><br><span class="order-status-badge" style="background:${color}20;color:${color}">${statusLabels[status]}</span></td>
-      <td>${escapeHtml(items.substring(0, 100))}${items.length > 100 ? '...' : ''}<br><small><a href="#" onclick="showAdminOrderDetail('${escapeHtml(o.order_code)}');return false;">View Full Details</a></small></td>
+      <td>${escapeHtml(items.substring(0, 80))}${items.length > 80 ? '...' : ''}<br><small><a href="#" onclick="showAdminOrderDetail('${escapeHtml(o.order_code)}');return false;">View Full</a></small></td>
       <td>${escapeHtml(o.name || '')}<br><small style="color:var(--text-light)">${escapeHtml(o.phone || '')}</small><br><small>${escapeHtml(o.address || '')}${o.pickupStore ? '<br><em>Pickup: ' + escapeHtml(o.pickupStore) + '</em>' : ''}</small></td>
-      <td><strong>₹${Number(o.total || 0).toLocaleString()}</strong><br><small style="color:var(--text-light)">${escapeHtml(o.payment || '')}</small></td>
+      <td><strong>₹${Number(o.total || 0).toLocaleString()}</strong><br><small>${escapeHtml(o.payment || '')}</small><br><small>${paymentStatusHtml}</small></td>
       <td>
-        <select onchange="updateOrderStatus('${escapeHtml(o.order_code)}', this.value)" style="padding:0.4rem;border-radius:6px;border:1px solid var(--border);font-size:0.8rem;width:100%;max-width:120px">
+        <select onchange="updateOrderStatus('${escapeHtml(o.order_code)}', this.value)" style="padding:0.4rem;border-radius:6px;border:1px solid var(--border);font-size:0.8rem;width:100%;max-width:120px;margin-bottom:0.3rem">
           ${statusOptions}
         </select>
       </td>
@@ -378,6 +385,76 @@ function showAdminOrderDetail(orderCode) {
       <div><strong>${escapeHtml(i.name || 'Product')}</strong><br><small>${i.size ? 'Size: ' + i.size + ' × ' : ''}${i.qty}</small><br><strong>₹${Number(i.price || 0).toLocaleString()}</strong></div>
     </div>`).join('');
     const paymentLabels = { upi: 'UPI / GPay / PhonePe', cod: 'Cash on Delivery', card: 'Credit/Debit Card', emi: 'No Cost EMI' };
-    alert(`ORDER DETAILS\n\nOrder: #${order.order_code}\nDate: ${order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}\nStatus: ${order.status || 'pending'}\n\nITEMS:\n${items.map(i => `- ${i.name || 'Product'} (${i.size || 'One Size'}) x${i.qty} = ₹${(i.price || 0) * i.qty}`).join('\n')}\n\nSUBTOTAL: ₹${order.subtotal || 0}\nSHIPPING: ${order.shipping == 0 ? 'Free' : '₹' + order.shipping}\nDISCOUNT: -₹${order.discount || 0}\nTOTAL: ₹${order.total || 0}\n\nPAYMENT: ${paymentLabels[order.payment] || order.payment || 'N/A'}\n\n${order.pickupStore ? 'PICKUP: ' + order.pickupStore : 'DELIVERY:\n' + (order.name || '') + '\n' + (order.address || '') + '\n' + (order.city || '') + ', ' + (order.state || '') + ' - ' + (order.pincode || '') + '\nPhone: ' + (order.phone || '')}`);
+    const paymentStatus = order.payment === 'cod' ? 'COD - No verification needed' :
+      (order.paymentVerified ? 'Payment Verified' : 'Payment Pending Verification');
+    alert(`ORDER DETAILS\n\nOrder: #${order.order_code}\nDate: ${order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}\nStatus: ${order.status || 'pending'}\n\nITEMS:\n${items.map(i => `- ${i.name || 'Product'} (${i.size || 'One Size'}) x${i.qty} = ₹${(i.price || 0) * i.qty}`).join('\n')}\n\nSUBTOTAL: ₹${order.subtotal || 0}\nSHIPPING: ${order.shipping == 0 ? 'Free' : '₹' + order.shipping}\nDISCOUNT: -₹${order.discount || 0}\nTOTAL: ₹${order.total || 0}\n\nPAYMENT: ${paymentLabels[order.payment] || order.payment || 'N/A'}\nPAYMENT STATUS: ${paymentStatus}\n\n${order.pickupStore ? 'PICKUP: ' + order.pickupStore : 'DELIVERY:\n' + (order.name || '') + '\n' + (order.address || '') + '\n' + (order.city || '') + ', ' + (order.state || '') + ' - ' + (order.pincode || '') + '\nPhone: ' + (order.phone || '')}`);
   });
+}
+
+// Settings Modal
+let currentScreenshotOrder = null;
+function openSettingsModal() {
+  const modal = document.getElementById('settingsModal');
+  if (!modal) return;
+  document.getElementById('settingUPI').value = getStoreUPI();
+  modal.classList.add('active');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settingsModal').classList.remove('active');
+}
+
+function saveSettings() {
+  const upiId = document.getElementById('settingUPI').value.trim();
+  setStoreUPI(upiId);
+  showToast('Settings saved!');
+  closeSettingsModal();
+}
+
+// Screenshot Modal
+function openScreenshotModal(orderCode) {
+  currentScreenshotOrder = orderCode;
+  const modal = document.getElementById('screenshotModal');
+  if (!modal) return;
+  dbListRecentOrders().then(orders => {
+    const order = orders.find(o => o.order_code === orderCode);
+    if (!order) { showToast('Order not found'); return; }
+    const img = document.getElementById('screenshotImage');
+    const statusText = document.getElementById('paymentStatusText');
+    if (order.paymentScreenshot) {
+      img.src = order.paymentScreenshot;
+      img.style.display = 'block';
+      statusText.textContent = `Payment Status: ${order.paymentVerified ? 'VERIFIED' : 'PENDING VERIFICATION'}`;
+      statusText.style.color = order.paymentVerified ? '#10b981' : '#f59e0b';
+    } else {
+      img.style.display = 'none';
+      statusText.textContent = 'No payment screenshot uploaded';
+      statusText.style.color = '#ef4444';
+    }
+  });
+  modal.classList.add('active');
+}
+
+function closeScreenshotModal() {
+  document.getElementById('screenshotModal').classList.remove('active');
+  currentScreenshotOrder = null;
+}
+
+async function markPaymentVerified() {
+  if (!currentScreenshotOrder || !supa) return;
+  const { error } = await supa.from('orders').update({ paymentVerified: true }).eq('order_code', currentScreenshotOrder);
+  if (error) { showToast('Failed: ' + error.message); return; }
+  showToast('Payment verified!');
+  closeScreenshotModal();
+  renderAdminOrders();
+}
+
+async function markPaymentFailed() {
+  if (!currentScreenshotOrder || !supa) return;
+  if (!confirm('Mark this payment as failed?')) return;
+  const { error } = await supa.from('orders').update({ paymentVerified: false, status: 'cancelled' }).eq('order_code', currentScreenshotOrder);
+  if (error) { showToast('Failed: ' + error.message); return; }
+  showToast('Payment marked as failed!');
+  closeScreenshotModal();
+  renderAdminOrders();
 }

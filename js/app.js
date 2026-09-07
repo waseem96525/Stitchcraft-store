@@ -35,6 +35,30 @@ const stores = [
   { name: "Hyderabad Center", address: "Banjara Hills, Hyderabad - 500034", phone: "+91 98765 43215", image: "https://images.unsplash.com/photo-1517164773350-01a90b4895d7?w=600", lat: 17.3850, lng: 78.4867 },
 ];
 
+// ---- Settings (UPI ID, etc.) ----
+const SETTINGS_KEY = 'stitchcraft_settings';
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch (e) { return {}; }
+}
+function saveSettings(settings) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+}
+function getSetting(key, defaultVal) {
+  const s = loadSettings();
+  return s[key] !== undefined ? s[key] : defaultVal;
+}
+function setSetting(key, value) {
+  const s = loadSettings();
+  s[key] = value;
+  saveSettings(s);
+}
+function getStoreUPI() { return getSetting('upiId', ''); }
+function setStoreUPI(id) { setSetting('upiId', id); }
+
 // ---- Catalog + stock (admin-editable; overrides saved in localStorage) ----
 const CATALOG_KEY = 'stitchcraft_products_v1';
 const DEFAULT_STOCK_PER_SIZE = 10;
@@ -579,7 +603,58 @@ function toggleCheckout() {
   if (document.getElementById('checkoutOverlay').classList.contains('active')) {
     updateCheckoutTotals();
     initPickupStores();
+    loadUPIId();
+    removeScreenshot();
   }
+}
+
+function loadUPIId() {
+  const upiId = getStoreUPI();
+  const display = document.getElementById('storeUpiId');
+  if (display) display.textContent = upiId || 'Not configured';
+  togglePaymentSection();
+}
+
+function togglePaymentSection() {
+  const selected = document.querySelector('input[name="payment"]:checked')?.value;
+  document.getElementById('upiPaymentSection').style.display = selected === 'upi' ? 'block' : 'none';
+  document.getElementById('cardPaymentSection').style.display = selected === 'card' ? 'block' : 'none';
+  document.getElementById('emiPaymentSection').style.display = selected === 'emi' ? 'block' : 'none';
+}
+
+function copyUPI() {
+  const upiId = getStoreUPI();
+  if (!upiId) { showToast('UPI ID not configured'); return; }
+  navigator.clipboard.writeText(upiId).then(() => {
+    showToast('UPI ID copied!');
+  }).catch(() => {
+    showToast('Failed to copy');
+  });
+}
+
+let uploadedScreenshotData = null;
+function handleScreenshotUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('File too large (max 5MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    uploadedScreenshotData = e.target.result;
+    const preview = document.getElementById('screenshotPreview');
+    const img = document.getElementById('screenshotImg');
+    img.src = uploadedScreenshotData;
+    preview.style.display = 'block';
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeScreenshot() {
+  uploadedScreenshotData = null;
+  const preview = document.getElementById('screenshotPreview');
+  const img = document.getElementById('screenshotImg');
+  if (preview) preview.style.display = 'none';
+  if (img) img.src = '';
 }
 
 function switchCheckoutTab(tab, btn) {
@@ -997,6 +1072,7 @@ function buildCloudOrder(orderId) {
     }
   } catch (e) {}
   const now = new Date().toISOString();
+  const paymentMethod = (document.querySelector('input[name="payment"]:checked') || {}).value || '';
   return {
     orderCode: orderId,
     items, subtotal, shipping,
@@ -1004,7 +1080,9 @@ function buildCloudOrder(orderId) {
     total: Math.max(0, subtotal + shipping - cartDiscount),
     name: val('fullName'), phone: val('phone'), address: val('address'),
     city: val('city'), state: val('state'), pincode: val('pincode'),
-    payment: (document.querySelector('input[name="payment"]:checked') || {}).value || '',
+    payment: paymentMethod,
+    paymentScreenshot: uploadedScreenshotData || null,
+    paymentVerified: paymentMethod === 'cod' ? true : false,
     pickupStore,
     status: 'pending',
     statusHistory: [

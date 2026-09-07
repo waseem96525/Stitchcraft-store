@@ -356,33 +356,68 @@
       <h4 data-i18n="paymentMethod">Payment Method</h4>
       <div class="payment-options">
         <label class="payment-option">
-          <input type="radio" name="payment" value="upi" checked>
+          <input type="radio" name="payment" value="upi" checked onchange="togglePaymentSection()">
           <div class="payment-card upi">
             <i class="fas fa-mobile-screen"></i>
             <span data-i18n="upi">UPI / GPay / PhonePe</span>
           </div>
         </label>
         <label class="payment-option">
-          <input type="radio" name="payment" value="cod">
+          <input type="radio" name="payment" value="cod" onchange="togglePaymentSection()">
           <div class="payment-card cod">
             <i class="fas fa-money-bill-wave"></i>
             <span data-i18n="cod">Cash on Delivery</span>
           </div>
         </label>
         <label class="payment-option">
-          <input type="radio" name="payment" value="card">
+          <input type="radio" name="payment" value="card" onchange="togglePaymentSection()">
           <div class="payment-card card">
             <i class="fas fa-credit-card"></i>
             <span data-i18n="card">Credit / Debit Card</span>
           </div>
         </label>
         <label class="payment-option">
-          <input type="radio" name="payment" value="emi">
+          <input type="radio" name="payment" value="emi" onchange="togglePaymentSection()">
           <div class="payment-card emi">
             <i class="fas fa-calendar-check"></i>
             <span data-i18n="emi">No Cost EMI</span>
           </div>
         </label>
+      </div>
+      <div id="upiPaymentSection" class="payment-section">
+        <div class="upi-details">
+          <h4><i class="fas fa-qrcode"></i> Pay via UPI</h4>
+          <div id="upiIdDisplay" class="upi-id-box">
+            <p>UPI ID: <strong id="storeUpiId">Loading...</strong></p>
+            <button class="btn btn-outline btn-sm" onclick="copyUPI()"><i class="fas fa-copy"></i> Copy</button>
+          </div>
+          <p class="upi-note">After payment, upload screenshot below</p>
+        </div>
+        <div class="payment-screenshot-upload">
+          <h4><i class="fas fa-camera"></i> Upload Payment Screenshot</h4>
+          <div class="screenshot-preview" id="screenshotPreview" style="display:none">
+            <img id="screenshotImg" src="" alt="Payment Screenshot">
+            <button type="button" class="remove-screenshot" onclick="removeScreenshot()"><i class="fas fa-times"></i></button>
+          </div>
+          <label class="screenshot-upload-box">
+            <input type="file" id="paymentScreenshot" accept="image/*" onchange="handleScreenshotUpload(this)">
+            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+            <p>Click to upload screenshot</p>
+            <small>JPG, PNG up to 5MB</small>
+          </label>
+        </div>
+      </div>
+      <div id="cardPaymentSection" class="payment-section" style="display:none">
+        <div class="card-payment-info">
+          <h4><i class="fas fa-credit-card"></i> Card Payment</h4>
+          <p>You will be redirected to our secure payment partner to complete your card payment.</p>
+        </div>
+      </div>
+      <div id="emiPaymentSection" class="payment-section" style="display:none">
+        <div class="emi-payment-info">
+          <h4><i class="fas fa-calendar-check"></i> EMI Payment</h4>
+          <p>No Cost EMI options are available with select banks. You will be redirected to complete payment.</p>
+        </div>
       </div>
       <div class="checkout-total">
         <div class="total-row">

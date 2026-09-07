@@ -58,6 +58,14 @@ function setSetting(key, value) {
 }
 function getStoreUPI() { return getSetting('upiId', ''); }
 function setStoreUPI(id) { setSetting('upiId', id); }
+function getFreeShippingAbove() { return getSetting('freeShippingAbove', 999); }
+function getShippingCharge() { return getSetting('shippingCharge', 99); }
+function getGSTRate() { return getSetting('gstRate', 18); }
+function getStoreName() { return getSetting('storeName', 'StitchCraft'); }
+function getStorePhone() { return getSetting('storePhone', '+91 98765 43210'); }
+function getStoreEmail() { return getSetting('storeEmail', 'info@stitchcraft.in'); }
+function getStoreAddress() { return getSetting('storeAddress', '123 Fashion Street, Mumbai - 400001'); }
+function getPromoCodes() { return getSetting('promoCodes', [{ code: 'FESTIVE2025', type: 'percent', value: 50, minOrder: 0, active: true }, { code: 'EXTRA500', type: 'fixed', value: 500, minOrder: 999, active: true }]); }
 
 // ---- Catalog + stock (admin-editable; overrides saved in localStorage) ----
 const CATALOG_KEY = 'stitchcraft_products_v1';
@@ -558,15 +566,15 @@ function renderCartItems() {
 
 function applyPromo() {
   const code = document.getElementById('promoCode').value.trim().toUpperCase();
-  if (code === 'FESTIVE2025' || code === 'EXTRA500') {
-    const subtotal = cart.reduce((s, i) => s + (products.find(pr => pr.id === i.id)?.price * i.qty || 0), 0);
-    cartDiscount = code === 'FESTIVE2025' ? Math.floor(subtotal * 0.5) : 500;
-    showToast('Promo code applied successfully!');
-    renderCartItems();
-    updateCheckoutTotals();
-  } else {
-    showToast('Invalid promo code');
-  }
+  const promos = getPromoCodes();
+  const promo = promos.find(p => p.code === code && p.active);
+  if (!promo) { showToast('Invalid promo code'); return; }
+  const subtotal = cart.reduce((s, i) => s + (products.find(pr => pr.id === i.id)?.price * i.qty || 0), 0);
+  if (subtotal < promo.minOrder) { showToast('Minimum order ₹' + promo.minOrder + ' required'); return; }
+  cartDiscount = promo.type === 'percent' ? Math.floor(subtotal * promo.value / 100) : promo.value;
+  showToast('Promo code applied successfully!');
+  renderCartItems();
+  updateCheckoutTotals();
 }
 
 const NAV_ALIASES = { home: 'hero', checkout: 'checkoutOverlay', cart: 'cartOverlay' };
@@ -627,7 +635,7 @@ function updateUPIQRCode() {
     return;
   }
   const subtotal = cart.reduce((sum, item) => sum + (products.find(pr => pr.id === item.id)?.price * item.qty || 0), 0);
-  const shipping = subtotal >= 999 ? 0 : 99;
+  const shipping = subtotal >= getFreeShippingAbove() ? 0 : getShippingCharge();
   const grandTotal = subtotal + shipping - cartDiscount;
   if (grandTotal > 0) {
     const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=StitchCraft&am=${grandTotal}&cu=INR`;
@@ -705,7 +713,7 @@ function initPickupStores() {
 
 function updateCheckoutTotals() {
   const subtotal = cart.reduce((sum, item) => sum + (products.find(pr => pr.id === item.id)?.price * item.qty || 0), 0);
-  const shipping = subtotal >= 999 ? 0 : 99;
+  const shipping = subtotal >= getFreeShippingAbove() ? 0 : getShippingCharge();
   const discount = cartDiscount;
   const grandTotal = subtotal + shipping - discount;
   document.getElementById('checkoutSubtotal').textContent = `₹${subtotal.toLocaleString()}`;
@@ -1145,7 +1153,7 @@ function buildCloudOrder(orderId) {
     return { id: item.id, name: pr.name || '', size: cartSizeOf(item), qty: item.qty, price: pr.price || 0, img: pr.img || '' };
   });
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const shipping = subtotal >= 999 ? 0 : 99;
+  const shipping = subtotal >= getFreeShippingAbove() ? 0 : getShippingCharge();
   let pickupStore = null;
   try {
     const sel = document.querySelector('input[name="pickupStore"]:checked');

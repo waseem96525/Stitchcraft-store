@@ -220,22 +220,82 @@
 
   <!-- Settings Modal -->
   <div class="admin-modal" id="settingsModal">
-    <div class="admin-modal-box" style="max-width: 500px;">
+    <div class="admin-modal-box settings-modal-box">
       <div class="admin-modal-head">
         <h3><i class="fas fa-cog"></i> Store Settings</h3>
         <button class="modal-close" onclick="closeSettingsModal()"><i class="fas fa-times"></i></button>
       </div>
-      <div class="form-grid">
-        <label class="span-2">UPI ID (for payments)
-          <input type="text" id="settingUPI" placeholder="yourname@upi">
-        </label>
-        <div class="span-2" style="padding: 0.8rem; background: var(--bg); border-radius: var(--radius-sm); text-align: center;">
-          <small style="color: var(--text-light);">Customers will see this UPI ID during checkout</small>
+      <div class="settings-tabs">
+        <button class="settings-tab active" onclick="switchSettingsTab('store')"><i class="fas fa-store"></i> Store</button>
+        <button class="settings-tab" onclick="switchSettingsTab('delivery')"><i class="fas fa-truck"></i> Delivery</button>
+        <button class="settings-tab" onclick="switchSettingsTab('payment')"><i class="fas fa-wallet"></i> Payment</button>
+        <button class="settings-tab" onclick="switchSettingsTab('social')"><i class="fas fa-share-alt"></i> Social</button>
+        <button class="settings-tab" onclick="switchSettingsTab('promos')"><i class="fas fa-tag"></i> Promos</button>
+      </div>
+
+      <!-- Store Info -->
+      <div id="settingsStore" class="settings-panel">
+        <div class="form-grid">
+          <label>Store Name<input type="text" id="sStoreName" placeholder="StitchCraft"></label>
+          <label>Tagline<input type="text" id="sTagline" placeholder="India's trusted garment store"></label>
+          <label class="span-2">Description<input type="text" id="sDescription" placeholder="Your store description"></label>
+          <label>Phone<input type="tel" id="sPhone" placeholder="+91 98765 43210"></label>
+          <label>Email<input type="email" id="sEmail" placeholder="info@store.com"></label>
+          <label class="span-2">Address<input type="text" id="sAddress" placeholder="123 Fashion Street, City - 110001"></label>
+          <label>GST Number<input type="text" id="sGST" placeholder="27AABCU9603R1ZM"></label>
         </div>
       </div>
+
+      <!-- Delivery Settings -->
+      <div id="settingsDelivery" class="settings-panel" style="display:none">
+        <div class="form-grid">
+          <label>Free Shipping Above (₹)<input type="number" id="sFreeShippingAbove" min="0" placeholder="999"></label>
+          <label>Shipping Charge (₹)<input type="number" id="sShippingCharge" min="0" placeholder="99"></label>
+          <label>GST Rate (%)<input type="number" id="sGSTRate" min="0" max="100" step="0.1" placeholder="18"></label>
+          <label>Delivery Days<input type="text" id="sDeliveryDays" placeholder="3-7 business days"></label>
+        </div>
+      </div>
+
+      <!-- Payment Settings -->
+      <div id="settingsPayment" class="settings-panel" style="display:none">
+        <div class="form-grid">
+          <label class="span-2">UPI ID<input type="text" id="sUPI" placeholder="yourname@upi"></label>
+          <label class="span-2">
+            <small style="color:var(--text-light)">This UPI ID will be shown to customers for payments</small>
+          </label>
+        </div>
+      </div>
+
+      <!-- Social Links -->
+      <div id="settingsSocial" class="settings-panel" style="display:none">
+        <div class="form-grid">
+          <label><i class="fab fa-facebook"></i> Facebook<input type="url" id="sFacebook" placeholder="https://facebook.com/..."></label>
+          <label><i class="fab fa-instagram"></i> Instagram<input type="url" id="sInstagram" placeholder="https://instagram.com/..."></label>
+          <label><i class="fab fa-twitter"></i> Twitter/X<input type="url" id="sTwitter" placeholder="https://twitter.com/..."></label>
+          <label><i class="fab fa-youtube"></i> YouTube<input type="url" id="sYoutube" placeholder="https://youtube.com/..."></label>
+          <label><i class="fab fa-whatsapp"></i> WhatsApp<input type="tel" id="sWhatsapp" placeholder="+91 98765 43210"></label>
+        </div>
+      </div>
+
+      <!-- Promo Codes -->
+      <div id="settingsPromos" class="settings-panel" style="display:none">
+        <div class="promo-list" id="promoList"></div>
+        <div class="promo-add">
+          <h4><i class="fas fa-plus"></i> Add Promo Code</h4>
+          <div class="form-grid">
+            <label>Code<input type="text" id="pCode" placeholder="FESTIVE50" style="text-transform:uppercase"></label>
+            <label>Type<select id="pType"><option value="percent">Percentage Off</option><option value="fixed">Fixed Amount Off</option></select></label>
+            <label>Value<input type="number" id="pValue" min="0" placeholder="500 or 20"></label>
+            <label>Min Order (₹)<input type="number" id="pMinOrder" min="0" placeholder="0"></label>
+            <label class="span-2">Active<select id="pActive"><option value="true">Yes</option><option value="false">No</option></select></label>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addPromoCode()" style="margin-top:0.75rem"><i class="fas fa-plus"></i> Add Promo</button>
+        </div>
+      </div>
+
       <div class="admin-modal-foot">
         <button class="btn btn-outline" onclick="closeSettingsModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveAdminSettings()"><i class="fas fa-save"></i> Save Settings</button>
+        <button class="btn btn-primary" onclick="saveAllSettings()"><i class="fas fa-save"></i> Save All Settings</button>
       </div>
     </div>
   </div>

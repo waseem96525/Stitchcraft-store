@@ -393,10 +393,36 @@ function showAdminOrderDetail(orderCode) {
 
 // Settings Modal
 let currentScreenshotOrder = null;
+
+function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.settings-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('settings' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+  event.target.closest('.settings-tab').classList.add('active');
+}
+
 function openSettingsModal() {
   const modal = document.getElementById('settingsModal');
   if (!modal) return;
-  document.getElementById('settingUPI').value = getStoreUPI();
+  // Load all settings into form
+  document.getElementById('sStoreName').value = getSetting('storeName', 'StitchCraft');
+  document.getElementById('sTagline').value = getSetting('tagline', "India's trusted garment store");
+  document.getElementById('sDescription').value = getSetting('storeDesc', 'Your trusted garment store since 2010');
+  document.getElementById('sPhone').value = getSetting('storePhone', '+91 98765 43210');
+  document.getElementById('sEmail').value = getSetting('storeEmail', 'info@stitchcraft.in');
+  document.getElementById('sAddress').value = getSetting('storeAddress', '123 Fashion Street, Mumbai - 400001');
+  document.getElementById('sGST').value = getSetting('gstNumber', '');
+  document.getElementById('sFreeShippingAbove').value = getSetting('freeShippingAbove', 999);
+  document.getElementById('sShippingCharge').value = getSetting('shippingCharge', 99);
+  document.getElementById('sGSTRate').value = getSetting('gstRate', 18);
+  document.getElementById('sDeliveryDays').value = getSetting('deliveryDays', '3-7 business days');
+  document.getElementById('sUPI').value = getStoreUPI();
+  document.getElementById('sFacebook').value = getSetting('socialFacebook', '');
+  document.getElementById('sInstagram').value = getSetting('socialInstagram', '');
+  document.getElementById('sTwitter').value = getSetting('socialTwitter', '');
+  document.getElementById('sYoutube').value = getSetting('socialYoutube', '');
+  document.getElementById('sWhatsapp').value = getSetting('socialWhatsapp', '');
+  renderPromoList();
   modal.classList.add('active');
 }
 
@@ -404,11 +430,110 @@ function closeSettingsModal() {
   document.getElementById('settingsModal').classList.remove('active');
 }
 
-function saveAdminSettings() {
-  const upiId = document.getElementById('settingUPI').value.trim();
-  setStoreUPI(upiId);
-  showToast('Settings saved!');
+function saveAllSettings() {
+  setSetting('storeName', document.getElementById('sStoreName').value.trim() || 'StitchCraft');
+  setSetting('tagline', document.getElementById('sTagline').value.trim());
+  setSetting('storeDesc', document.getElementById('sDescription').value.trim());
+  setSetting('storePhone', document.getElementById('sPhone').value.trim());
+  setSetting('storeEmail', document.getElementById('sEmail').value.trim());
+  setSetting('storeAddress', document.getElementById('sAddress').value.trim());
+  setSetting('gstNumber', document.getElementById('sGST').value.trim());
+  setSetting('freeShippingAbove', parseFloat(document.getElementById('sFreeShippingAbove').value) || 999);
+  setSetting('shippingCharge', parseFloat(document.getElementById('sShippingCharge').value) || 99);
+  setSetting('gstRate', parseFloat(document.getElementById('sGSTRate').value) || 18);
+  setSetting('deliveryDays', document.getElementById('sDeliveryDays').value.trim());
+  setStoreUPI(document.getElementById('sUPI').value.trim());
+  setSetting('socialFacebook', document.getElementById('sFacebook').value.trim());
+  setSetting('socialInstagram', document.getElementById('sInstagram').value.trim());
+  setSetting('socialTwitter', document.getElementById('sTwitter').value.trim());
+  setSetting('socialYoutube', document.getElementById('sYoutube').value.trim());
+  setSetting('socialWhatsapp', document.getElementById('sWhatsapp').value.trim());
+  showToast('Settings saved successfully!');
   closeSettingsModal();
+  applySettingsToUI();
+}
+
+// Promo Codes
+function getPromoCodes() {
+  return getSetting('promoCodes', [
+    { code: 'FESTIVE2025', type: 'percent', value: 50, minOrder: 0, active: true },
+    { code: 'EXTRA500', type: 'fixed', value: 500, minOrder: 999, active: true }
+  ]);
+}
+
+function savePromoCodes(codes) {
+  setSetting('promoCodes', codes);
+}
+
+function renderPromoList() {
+  const list = document.getElementById('promoList');
+  if (!list) return;
+  const promos = getPromoCodes();
+  list.innerHTML = promos.map((p, i) => `
+    <div class="promo-item">
+      <div class="promo-item-info">
+        <span class="promo-item-code">${escapeHtml(p.code)}</span>
+        <span class="promo-item-desc">${p.type === 'percent' ? p.value + '% Off' : '₹' + p.value + ' Off'} | Min ₹${p.minOrder}</span>
+        <span class="${p.active ? 'promo-item active-badge' : 'promo-item inactive-badge'}">${p.active ? 'Active' : 'Inactive'}</span>
+      </div>
+      <button class="icon-btn del" onclick="deletePromo(${i})" title="Delete"><i class="fas fa-trash"></i></button>
+    </div>
+  `).join('');
+}
+
+function addPromoCode() {
+  const code = document.getElementById('pCode').value.trim().toUpperCase();
+  const type = document.getElementById('pType').value;
+  const value = parseFloat(document.getElementById('pValue').value) || 0;
+  const minOrder = parseFloat(document.getElementById('pMinOrder').value) || 0;
+  const active = document.getElementById('pActive').value === 'true';
+  if (!code || value <= 0) { showToast('Enter valid promo code and value'); return; }
+  const promos = getPromoCodes();
+  if (promos.find(p => p.code === code)) { showToast('Promo code already exists'); return; }
+  promos.push({ code, type, value, minOrder, active });
+  savePromoCodes(promos);
+  document.getElementById('pCode').value = '';
+  document.getElementById('pValue').value = '';
+  document.getElementById('pMinOrder').value = '0';
+  renderPromoList();
+  showToast('Promo code added!');
+}
+
+function deletePromo(index) {
+  if (!confirm('Delete this promo code?')) return;
+  const promos = getPromoCodes();
+  promos.splice(index, 1);
+  savePromoCodes(promos);
+  renderPromoList();
+  showToast('Promo code deleted');
+}
+
+// Apply settings to UI elements
+function applySettingsToUI() {
+  const storeName = getSetting('storeName', 'StitchCraft');
+  const tagline = getSetting('tagline', "India's trusted garment store");
+  const phone = getSetting('storePhone', '+91 98765 43210');
+  const email = getSetting('storeEmail', 'info@stitchcraft.in');
+  const address = getSetting('storeAddress', '123 Fashion Street, Mumbai - 400001');
+  // Update logo/name in navbar
+  document.querySelectorAll('.logo, .footer-logo').forEach(el => {
+    const icon = el.querySelector('i');
+    const text = icon ? icon.nextSibling : el.firstChild;
+    if (text) text.textContent = ' ' + storeName;
+  });
+  // Update tagline
+  document.querySelectorAll('[data-footer-desc]').forEach(el => el.textContent = getSetting('storeDesc', "India's most trusted garment store, serving customers since 2010."));
+  // Update contact info
+  const addrEl = document.querySelector('[data-address]');
+  if (addrEl) addrEl.textContent = address;
+  const phoneEl = document.querySelector('[data-phone]');
+  if (phoneEl) phoneEl.textContent = phone;
+  const emailEl = document.querySelector('[data-email]');
+  if (emailEl) emailEl.textContent = email;
+  // Update free shipping text
+  const freeShipEl = document.querySelectorAll('[data-free-shipping]');
+  const freeShipAbove = getSetting('freeShippingAbove', 999);
+  freeShipEl.forEach(el => el.textContent = 'Free Shipping Above ₹' + freeShipAbove);
 }
 
 // Screenshot Modal
@@ -594,7 +719,8 @@ function generateBill() {
   const discountPct = parseFloat(document.getElementById('billDiscount')?.value) || 0;
   const discountAmt = subtotal * discountPct / 100;
   const afterDiscount = subtotal - discountAmt;
-  const gst = afterDiscount * 0.18;
+  const gstRate = getGSTRate ? getGSTRate() : 18;
+  const gst = afterDiscount * gstRate / 100;
   const total = afterDiscount + gst;
   const paymentMethod = document.getElementById('billPaymentMethod').value;
   const paymentLabels = { cash: 'Cash', upi: 'UPI', card: 'Card', mixed: 'Mixed (Cash + UPI)' };
@@ -602,6 +728,20 @@ function generateBill() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+  // Update bill header with store settings
+  const storeName = getSetting('storeName', 'StitchCraft');
+  const storeAddress = getSetting('storeAddress', '123 Fashion Street, Mumbai - 400001');
+  const storePhone = getSetting('storePhone', '+91 98765 43210');
+  const storeEmail = getSetting('storeEmail', 'info@stitchcraft.in');
+  const billLogoEl = document.querySelector('#billPrintContent .bill-logo');
+  if (billLogoEl) billLogoEl.innerHTML = '<i class="fas fa-seedling"></i> ' + storeName;
+  const taglineEl = document.querySelector('#billPrintContent .bill-tagline');
+  if (taglineEl) taglineEl.textContent = 'Quality Garments Since 2010';
+  const addrEl = document.querySelector('#billPrintContent .bill-address');
+  if (addrEl) addrEl.textContent = storeAddress;
+  const contactEl = document.querySelector('#billPrintContent .bill-contact');
+  if (contactEl) contactEl.textContent = 'Ph: ' + storePhone + ' | Email: ' + storeEmail;
 
   document.getElementById('billPrintNo').textContent = billNo;
   document.getElementById('billPrintDate').textContent = dateStr + ' ' + timeStr;
@@ -618,10 +758,14 @@ function generateBill() {
     </tr>
   `).join('');
   document.getElementById('billPrintSubtotal').textContent = '₹' + subtotal.toLocaleString();
-  document.getElementById('billPrintGST').textContent = '₹' + gst.toFixed(0).toLocaleString();
+  document.getElementById('billPrintGST').textContent = '₹' + gst.toFixed(0).toLocaleString() + ' (' + gstRate + '%)';
   document.getElementById('billPrintDiscount').textContent = '-₹' + discountAmt.toFixed(0).toLocaleString();
   document.getElementById('billPrintTotal').textContent = '₹' + total.toFixed(0).toLocaleString();
   document.getElementById('billPrintPayment').textContent = paymentLabels[paymentMethod];
+
+  // Update footer
+  const footerEl = document.querySelector('#billPrintContent .bill-footer p:first-child');
+  if (footerEl) footerEl.textContent = 'Thank you for shopping with ' + storeName + '!';
 
   // Deduct stock
   billItems.forEach(item => {

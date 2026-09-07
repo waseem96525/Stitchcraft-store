@@ -184,6 +184,24 @@
 .inventory-filters { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
 .inventory-filters select { padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; background: #fff; }
 
+/* Settings Modal */
+.settings-modal-box { max-width: 650px; }
+.settings-tabs { display: flex; gap: 0.3rem; margin-bottom: 1.2rem; border-bottom: 2px solid var(--border); padding-bottom: 0; flex-wrap: wrap; }
+.settings-tab { padding: 0.6rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-light); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: var(--transition); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.settings-tab:hover { color: var(--secondary); }
+.settings-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.settings-tab i { margin-right: 0.3rem; }
+.settings-panel { }
+.promo-list { max-height: 200px; overflow-y: auto; margin-bottom: 1rem; }
+.promo-item { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.8rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 0.5rem; }
+.promo-item-info { display: flex; align-items: center; gap: 1rem; }
+.promo-item-code { font-weight: 700; font-family: monospace; font-size: 1rem; }
+.promo-item-desc { font-size: 0.8rem; color: var(--text-light); }
+.promo-item.active-badge { background: #e6f4ea; color: #137333; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 20px; font-weight: 600; }
+.promo-item.inactive-badge { background: #fdecea; color: var(--primary); font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 20px; font-weight: 600; }
+.promo-add { background: var(--bg); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 1rem; }
+.promo-add h4 { font-size: 0.95rem; margin-bottom: 0.8rem; color: var(--secondary); }
+
 /* Responsive */
 @media (max-width: 768px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -192,4 +210,5 @@
   .stock-rows { grid-template-columns: repeat(2, 1fr); }
   .admin-topbar-inner { flex-direction: column; gap: 0.6rem; }
   .billing-container { grid-template-columns: 1fr; }
+  .settings-tabs { flex-wrap: wrap; }
 }

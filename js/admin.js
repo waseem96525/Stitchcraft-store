@@ -404,7 +404,7 @@ function closeSettingsModal() {
   document.getElementById('settingsModal').classList.remove('active');
 }
 
-function saveSettings() {
+function saveAdminSettings() {
   const upiId = document.getElementById('settingUPI').value.trim();
   setStoreUPI(upiId);
   showToast('Settings saved!');

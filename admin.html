@@ -129,7 +129,7 @@
       </div>
       <div class="form-grid">
         <label class="span-2">UPI ID (for payments)
-          <input type="text" id="settingUPI" placeholder="yourname@upi" oninput="document.getElementById('upiPreview').textContent = this.value || 'Not set'">
+          <input type="text" id="settingUPI" placeholder="yourname@upi">
         </label>
         <div class="span-2" style="padding: 0.8rem; background: var(--bg); border-radius: var(--radius-sm); text-align: center;">
           <small style="color: var(--text-light);">Customers will see this UPI ID during checkout</small>
@@ -137,7 +137,7 @@
       </div>
       <div class="admin-modal-foot">
         <button class="btn btn-outline" onclick="closeSettingsModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+        <button class="btn btn-primary" onclick="saveAdminSettings()"><i class="fas fa-save"></i> Save Settings</button>
       </div>
     </div>
   </div>

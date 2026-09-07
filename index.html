@@ -450,13 +450,15 @@
 </section>
 
 <section class="order-success" id="orderSuccess">
+  <canvas id="confettiCanvas"></canvas>
   <div class="success-content">
     <div class="success-icon"><i class="fas fa-check-circle"></i></div>
-    <h2 data-i18n="orderSuccess">Order Placed Successfully!</h2>
-    <p data-i18n="thanksPurchase">Thank you for your purchase. Order ID: <strong id="orderId"></strong></p>
+    <h2 data-i18n="orderSuccess">Congratulations!</h2>
+    <p class="congrats-subtitle">Your order has been placed successfully!</p>
+    <p data-i18n="thanksPurchase">Order ID: <strong id="orderId"></strong></p>
     <p data-i18n="confirmation">A confirmation has been sent to your email and phone.</p>
     <div class="success-btns">
-      <button class="btn btn-primary" data-i18n="continueShopping" onclick="navigateTo('home')">Continue Shopping</button>
+      <button class="btn btn-primary btn-lg" data-i18n="continueShopping" onclick="shopMore()"><i class="fas fa-bag-shopping"></i> Shop More</button>
       <button class="btn btn-outline" data-i18n="findStore" onclick="navigateTo('stores')">Find a Store</button>
     </div>
   </div>

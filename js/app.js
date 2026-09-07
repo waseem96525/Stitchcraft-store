@@ -735,6 +735,7 @@ function placeOrder() {
   const order = buildCloudOrder(orderId);
   document.getElementById('orderId').textContent = orderId;
   document.getElementById('orderSuccess').classList.add('active');
+  launchConfetti();
   document.getElementById('checkoutOverlay').classList.remove('active');
   document.getElementById('orderSuccess').dataset.orderCode = orderId;
   document.getElementById('orderSuccess').dataset.fullOrder = JSON.stringify(order);
@@ -776,6 +777,62 @@ function showToast(message) {
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
+}
+
+// Confetti / Sparkle Animation
+function launchConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const particles = [];
+  const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff9ff3', '#feca57', '#48dbfb', '#ff9f43'];
+  for (let i = 0; i < 150; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 6 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 10,
+      speedY: Math.random() * 3 + 2,
+      speedX: (Math.random() - 0.5) * 2,
+      opacity: 1,
+      sparkle: Math.random() > 0.5
+    });
+  }
+  let frame = 0;
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      if (p.sparkle) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = p.color;
+      }
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+      p.y += p.speedY;
+      p.x += p.speedX;
+      p.rot += p.rotSpeed;
+      if (p.y > canvas.height) p.opacity -= 0.02;
+    });
+    frame++;
+    if (frame < 180) requestAnimationFrame(animate);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  animate();
+}
+
+function shopMore() {
+  document.getElementById('orderSuccess').classList.remove('active');
+  navigateTo('home');
 }
 
 function setupScrollAnimations() {

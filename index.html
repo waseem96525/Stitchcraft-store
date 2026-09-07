@@ -387,6 +387,10 @@
       <div id="upiPaymentSection" class="payment-section">
         <div class="upi-details">
           <h4><i class="fas fa-qrcode"></i> Pay via UPI</h4>
+          <div id="upiQRContainer" style="text-align:center;margin:1rem 0">
+            <img id="upiQRCode" src="" alt="UPI QR Code" style="display:none;width:180px;height:180px;border-radius:8px;background:#fff;padding:8px">
+            <p id="upiQRNote" style="color:var(--text-light);font-size:0.85rem">QR code will appear when you enter amount</p>
+          </div>
           <div id="upiIdDisplay" class="upi-id-box">
             <p>UPI ID: <strong id="storeUpiId">Loading...</strong></p>
             <button class="btn btn-outline btn-sm" onclick="copyUPI()"><i class="fas fa-copy"></i> Copy</button>

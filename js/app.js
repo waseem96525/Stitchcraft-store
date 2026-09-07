@@ -613,6 +613,31 @@ function loadUPIId() {
   const display = document.getElementById('storeUpiId');
   if (display) display.textContent = upiId || 'Not configured';
   togglePaymentSection();
+  updateUPIQRCode();
+}
+
+function updateUPIQRCode() {
+  const upiId = getStoreUPI();
+  const qrImg = document.getElementById('upiQRCode');
+  const qrNote = document.getElementById('upiQRNote');
+  if (!qrImg) return;
+  if (!upiId) {
+    qrImg.style.display = 'none';
+    if (qrNote) qrNote.textContent = 'UPI ID not configured by store';
+    return;
+  }
+  const subtotal = cart.reduce((sum, item) => sum + (products.find(pr => pr.id === item.id)?.price * item.qty || 0), 0);
+  const shipping = subtotal >= 999 ? 0 : 99;
+  const grandTotal = subtotal + shipping - cartDiscount;
+  if (grandTotal > 0) {
+    const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=StitchCraft&am=${grandTotal}&cu=INR`;
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiUrl)}`;
+    qrImg.style.display = 'block';
+    if (qrNote) qrNote.textContent = `Scan to pay ₹${grandTotal.toLocaleString()}`;
+  } else {
+    qrImg.style.display = 'none';
+    if (qrNote) qrNote.textContent = 'Add items to see payment QR code';
+  }
 }
 
 function togglePaymentSection() {
@@ -687,6 +712,7 @@ function updateCheckoutTotals() {
   document.getElementById('checkoutShipping').textContent = shipping === 0 ? 'Free' : `₹${shipping.toLocaleString()}`;
   document.getElementById('checkoutDiscount').textContent = `-₹${discount.toLocaleString()}`;
   document.getElementById('checkoutGrandTotal').textContent = `₹${Math.max(0, grandTotal).toLocaleString()}`;
+  updateUPIQRCode();
 }
 
 function placeOrder() {

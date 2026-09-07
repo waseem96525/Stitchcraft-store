@@ -41,6 +41,7 @@ create table if not exists public.orders (
   total numeric not null default 0,
   name text not null default '',
   phone text not null default '',
+  email text not null default '',
   address text not null default '',
   city text not null default '',
   state text not null default '',
@@ -49,6 +50,8 @@ create table if not exists public.orders (
   pickup_store text,
   status text not null default 'pending',
   status_history jsonb not null default '[]',
+  payment_screenshot text,
+  payment_verified boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -66,6 +69,9 @@ begin
   end if;
   if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'payment_verified') then
     alter table public.orders add column payment_verified boolean not null default false;
+  end if;
+  if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'email') then
+    alter table public.orders add column email text not null default '';
   end if;
 end
 $$;

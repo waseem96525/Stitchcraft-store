@@ -1169,7 +1169,7 @@ function buildCloudOrder(orderId) {
     items, subtotal, shipping,
     discount: cartDiscount,
     total: Math.max(0, subtotal + shipping - cartDiscount),
-    name: val('fullName'), phone: val('phone'), address: val('address'),
+    name: val('fullName'), phone: val('phone'), email: val('email'), address: val('address'),
     city: val('city'), state: val('state'), pincode: val('pincode'),
     payment: paymentMethod,
     payment_screenshot: uploadedScreenshotData || null,
@@ -1195,5 +1195,18 @@ function persistOrderCloud(order) {
       const p = products.find(x => x.id === it.id);
       if (p) dbUpdateStock(p.id, p.stock);
     });
+    sendOrderConfirmationEmail(order);
   });
+}
+
+async function sendOrderConfirmationEmail(order) {
+  if (!supa || !order.customerEmail) return;
+  try {
+    const { data, error } = await supa.functions.invoke('send-order-confirmation', {
+      body: { order }
+    });
+    if (error) console.log('Email function error:', error);
+  } catch (e) {
+    console.log('Email not sent:', e);
+  }
 }

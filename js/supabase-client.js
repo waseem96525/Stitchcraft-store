@@ -173,6 +173,7 @@ async function dbCreateOrder(order) {
     total: order.total,
     name: order.name || '',
     phone: order.phone || '',
+    email: order.email || '',
     address: order.address || '',
     city: order.city || '',
     state: order.state || '',

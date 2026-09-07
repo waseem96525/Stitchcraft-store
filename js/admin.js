@@ -590,7 +590,9 @@ function switchAdminTab(tab) {
   document.getElementById('tabProducts').style.display = tab === 'products' ? 'block' : 'none';
   document.getElementById('tabBilling').style.display = tab === 'billing' ? 'block' : 'none';
   document.getElementById('tabInventory').style.display = tab === 'inventory' ? 'block' : 'none';
+  document.getElementById('tabReports').style.display = tab === 'reports' ? 'block' : 'none';
   event.target.closest('.admin-tab').classList.add('active');
+  if (tab === 'reports') generateReport();
   if (tab === 'billing') clearBill();
   if (tab === 'inventory') renderInventory();
 }
@@ -878,4 +880,367 @@ function exportInventory() {
   a.download = 'stitchcraft_inventory_' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ============ REPORTS ============
+let reportData = { orders: [], startDate: null, endDate: null };
+
+function changeReportPeriod() {
+  const period = document.getElementById('reportPeriod').value;
+  const customRange = document.getElementById('customDateRange');
+  if (period === 'custom') {
+    customRange.style.display = 'flex';
+    return;
+  }
+  customRange.style.display = 'none';
+  generateReport();
+}
+
+async function generateReport() {
+  const period = document.getElementById('reportPeriod').value;
+  let startDate, endDate;
+  const now = new Date();
+  endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+  if (period === 'custom') {
+    startDate = new Date(document.getElementById('reportDateFrom').value);
+    endDate = new Date(document.getElementById('reportDateTo').value);
+    endDate.setHours(23, 59, 59);
+  } else if (period === 'today') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  } else if (period === 'yesterday') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+  } else if (period === 'week') {
+    const dayOfWeek = now.getDay();
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek, 0, 0, 0);
+  } else if (period === 'month') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+  } else if (period === 'quarter') {
+    const quarter = Math.floor(now.getMonth() / 3);
+    startDate = new Date(now.getFullYear(), quarter * 3, 1, 0, 0, 0);
+  } else if (period === 'year') {
+    startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+  }
+
+  reportData.startDate = startDate;
+  reportData.endDate = endDate;
+
+  // Fetch orders from Supabase
+  if (supa) {
+    try {
+      const { data, error } = await supa.from('orders').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        reportData.orders = data.filter(o => {
+          const d = new Date(o.created_at);
+          return d >= startDate && d <= endDate;
+        });
+      }
+    } catch (e) {}
+  } else {
+    reportData.orders = [];
+  }
+
+  updateReportSummary();
+  updateSalesChart();
+  updatePaymentMethods();
+  updateOrderStatus();
+  updateTopProducts();
+  updateCategorySales();
+  updateRecentOrders();
+}
+
+function updateReportSummary() {
+  const orders = reportData.orders;
+  const totalRevenue = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+  const totalOrders = orders.length;
+  const itemsSold = orders.reduce((s, o) => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    return s + items.reduce((ss, i) => ss + (parseInt(i.qty) || 0), 0);
+  }, 0);
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  document.getElementById('reportTotalRevenue').textContent = '₹' + totalRevenue.toLocaleString('en-IN');
+  document.getElementById('reportTotalOrders').textContent = totalOrders.toLocaleString('en-IN');
+  document.getElementById('reportItemsSold').textContent = itemsSold.toLocaleString('en-IN');
+  document.getElementById('reportAvgOrder').textContent = '₹' + Math.round(avgOrder).toLocaleString('en-IN');
+}
+
+function updateSalesChart() {
+  const orders = reportData.orders;
+  const chartBars = document.getElementById('chartBars');
+  if (!chartBars) return;
+
+  // Group orders by day
+  const dailySales = {};
+  let peakDay = { day: '-', amount: 0 };
+  let totalDays = 0;
+  let totalAmount = 0;
+
+  orders.forEach(o => {
+    const d = new Date(o.created_at);
+    const dayKey = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    dailySales[dayKey] = (dailySales[dayKey] || 0) + (parseFloat(o.total) || 0);
+  });
+
+  const days = Object.keys(dailySales).sort((a, b) => {
+    const dateA = new Date(a + ', ' + new Date().getFullYear());
+    const dateB = new Date(b + ', ' + new Date().getFullYear());
+    return dateA - dateB;
+  });
+
+  const maxSale = Math.max(...Object.values(dailySales), 1);
+
+  days.forEach(day => {
+    const amount = dailySales[day];
+    totalDays++;
+    totalAmount += amount;
+    if (amount > peakDay.amount) {
+      peakDay = { day, amount };
+    }
+  });
+
+  chartBars.innerHTML = days.map(day => {
+    const height = (dailySales[day] / maxSale) * 100;
+    return `<div class="chart-bar-wrap">
+      <div class="chart-bar" style="height:${height}%"></div>
+      <span class="chart-bar-label">${day}</span>
+      <span class="chart-bar-value">₹${dailySales[day].toLocaleString('en-IN')}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('reportPeakDay').textContent = peakDay.day !== '-' ? peakDay.day + ' (₹' + peakDay.amount.toLocaleString('en-IN') + ')' : '-';
+  document.getElementById('reportDailyAvg').textContent = totalDays > 0 ? '₹' + Math.round(totalAmount / totalDays).toLocaleString('en-IN') : '₹0';
+}
+
+function updatePaymentMethods() {
+  const container = document.getElementById('paymentMethodsChart');
+  if (!container) return;
+  const orders = reportData.orders;
+  const methods = { upi: 0, cod: 0, card: 0, emi: 0 };
+  orders.forEach(o => {
+    const m = o.payment || 'cod';
+    methods[m] = (methods[m] || 0) + 1;
+  });
+  const total = orders.length || 1;
+  const labels = { upi: 'UPI', cod: 'Cash on Delivery', card: 'Card', emi: 'EMI' };
+  const colors = { upi: '#10b981', cod: '#3b82f6', card: '#8b5cf6', emi: '#f59e0b' };
+
+  container.innerHTML = Object.keys(methods).filter(k => methods[k] > 0).map(k => `
+    <div class="payment-method-row">
+      <span class="payment-method-label"><span class="payment-dot" style="background:${colors[k]}"></span>${labels[k] || k}</span>
+      <span class="payment-method-count">${methods[k]}</span>
+      <span class="payment-method-pct">${(methods[k] / total * 100).toFixed(1)}%</span>
+      <div class="payment-bar-bg"><div class="payment-bar-fill" style="width:${methods[k] / total * 100}%;background:${colors[k]}"></div></div>
+    </div>
+  `).join('');
+}
+
+function updateOrderStatus() {
+  const container = document.getElementById('orderStatusChart');
+  if (!container) return;
+  const orders = reportData.orders;
+  const statuses = { pending: 0, confirmed: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+  orders.forEach(o => {
+    const s = o.status || 'pending';
+    statuses[s] = (statuses[s] || 0) + 1;
+  });
+  const total = orders.length || 1;
+  const labels = { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
+  const colors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444' };
+
+  container.innerHTML = Object.keys(statuses).filter(k => statuses[k] > 0).map(k => `
+    <div class="status-row">
+      <span class="status-label"><span class="status-dot" style="background:${colors[k]}"></span>${labels[k] || k}</span>
+      <span class="status-count">${statuses[k]}</span>
+      <span class="status-pct">${(statuses[k] / total * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+}
+
+function updateTopProducts() {
+  const tbody = document.getElementById('topProductsTable');
+  if (!tbody) return;
+  const orders = reportData.orders;
+  const productSales = {};
+  orders.forEach(o => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    items.forEach(i => {
+      if (!productSales[i.id]) {
+        productSales[i.id] = { name: i.name || 'Unknown', qty: 0, revenue: 0 };
+      }
+      productSales[i.id].qty += parseInt(i.qty) || 0;
+      productSales[i.id].revenue += (parseFloat(i.price) || 0) * (parseInt(i.qty) || 0);
+    });
+  });
+
+  const sorted = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  const totalRevenue = sorted.reduce((s, p) => s + p.revenue, 0) || 1;
+
+  tbody.innerHTML = sorted.length ? sorted.map((p, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${p.qty}</td>
+      <td>₹${p.revenue.toLocaleString('en-IN')}</td>
+      <td>${(p.revenue / totalRevenue * 100).toFixed(1)}%</td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:1rem">No sales data</td></tr>';
+}
+
+function updateCategorySales() {
+  const container = document.getElementById('categorySalesChart');
+  if (!container) return;
+  const orders = reportData.orders;
+  const catSales = {};
+  orders.forEach(o => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    items.forEach(i => {
+      const cat = 'General';
+      catSales[cat] = (catSales[cat] || 0) + (parseFloat(i.price) || 0) * (parseInt(i.qty) || 0);
+    });
+  });
+
+  const sorted = Object.entries(catSales).sort((a, b) => b[1] - a[1]);
+  const colors = ['#c41e3a', '#1a1a2e', '#e8b44b', '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'];
+  const total = sorted.reduce((s, [, v]) => s + v, 1);
+
+  container.innerHTML = sorted.map(([cat, amount], i) => `
+    <div class="category-row">
+      <span class="category-label"><span class="category-dot" style="background:${colors[i % colors.length]}"></span>${escapeHtml(cat)}</span>
+      <span class="category-amount">₹${amount.toLocaleString('en-IN')}</span>
+      <span class="category-pct">${(amount / total * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+}
+
+function updateRecentOrders() {
+  const container = document.getElementById('recentOrdersList');
+  if (!container) return;
+  const orders = reportData.orders.slice(0, 10);
+  const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444' };
+
+  container.innerHTML = orders.length ? orders.map(o => {
+    const d = new Date(o.created_at);
+    const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const status = o.status || 'pending';
+    return `<div class="recent-order-item">
+      <div class="recent-order-info">
+        <strong>#${escapeHtml(o.order_code)}</strong>
+        <small>${dateStr}</small>
+      </div>
+      <div class="recent-order-right">
+        <span class="recent-order-total">₹${Number(o.total || 0).toLocaleString('en-IN')}</span>
+        <span class="recent-order-status" style="color:${statusColors[status]}">${status}</span>
+      </div>
+    </div>`;
+  }).join('') : '<p style="text-align:center;color:var(--text-light);padding:1rem">No orders in this period</p>';
+}
+
+function exportReport(format) {
+  const orders = reportData.orders;
+  let csv = 'Order Code,Date,Customer,Phone,Items,Subtotal,Shipping,Discount,Total,Payment,Status\n';
+
+  orders.forEach(o => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    const itemNames = items.map(i => `${i.name || 'Item'}(${i.qty})`).join('; ');
+    const d = new Date(o.created_at);
+    csv += `"${o.order_code || ''}","${d.toLocaleDateString('en-IN')}","${o.name || ''}","${o.phone || ''}","${itemNames}",${o.subtotal || 0},${o.shipping || 0},${o.discount || 0},${o.total || 0},"${o.payment || ''}","${o.status || 'pending'}"\n`;
+  });
+
+  // Add summary rows
+  const totalRevenue = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+  const totalOrders = orders.length;
+  const itemsSold = orders.reduce((s, o) => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    return s + items.reduce((ss, i) => ss + (parseInt(i.qty) || 0), 0);
+  }, 0);
+
+  csv += `\n\nSummary\n`;
+  csv += `Total Revenue,${totalRevenue}\n`;
+  csv += `Total Orders,${totalOrders}\n`;
+  csv += `Items Sold,${itemsSold}\n`;
+  csv += `Average Order Value,${totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : 0}\n`;
+  csv += `Report Period,${reportData.startDate?.toLocaleDateString('en-IN')} - ${reportData.endDate?.toLocaleDateString('en-IN')}\n`;
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'stitchcraft_report_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printReport() {
+  const orders = reportData.orders;
+  const totalRevenue = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+  const totalOrders = orders.length;
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>StitchCraft Report</title>
+      <meta charset="UTF-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; font-size: 12px; }
+        h1 { font-size: 24px; margin-bottom: 5px; color: #1a1a2e; }
+        h2 { font-size: 16px; margin: 20px 0 10px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .meta { color: #666; margin-bottom: 20px; }
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .summary-card { background: #f5f5f5; padding: 15px; border-radius: 8px; text-align: center; }
+        .summary-card .value { font-size: 20px; font-weight: bold; color: #1a1a2e; }
+        .summary-card .label { font-size: 11px; color: #666; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        th { background: #f0f0f0; font-weight: 600; }
+        tr:nth-child(even) { background: #fafafa; }
+        .footer { margin-top: 30px; text-align: center; color: #888; font-size: 10px; }
+        @media print { body { padding: 10px; } }
+      </style>
+    </head>
+    <body>
+      <h1><i class="fas fa-seedling"></i> StitchCraft Reports</h1>
+      <p class="meta">Period: ${reportData.startDate?.toLocaleDateString('en-IN')} to ${reportData.endDate?.toLocaleDateString('en-IN')} | Generated: ${new Date().toLocaleString('en-IN')}</p>
+
+      <div class="summary">
+        <div class="summary-card"><div class="value">₹${totalRevenue.toLocaleString('en-IN')}</div><div class="label">Total Revenue</div></div>
+        <div class="summary-card"><div class="value">${totalOrders}</div><div class="label">Total Orders</div></div>
+        <div class="summary-card"><div class="value">₹${totalOrders > 0 ? Math.round(totalRevenue / totalOrders).toLocaleString('en-IN') : 0}</div><div class="label">Avg Order Value</div></div>
+        <div class="summary-card"><div class="value">${orders.reduce((s, o) => s + (Array.isArray(o.items) ? o.items.reduce((ss, i) => ss + (parseInt(i.qty) || 0), 0) : 0), 0)}</div><div class="label">Items Sold</div></div>
+      </div>
+
+      <h2>Orders</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Order Code</th><th>Date</th><th>Customer</th><th>Phone</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${orders.map((o, i) => {
+            const items = Array.isArray(o.items) ? o.items : [];
+            const d = new Date(o.created_at);
+            return `<tr>
+              <td>${i + 1}</td>
+              <td>${o.order_code || ''}</td>
+              <td>${d.toLocaleDateString('en-IN')}</td>
+              <td>${o.name || ''}</td>
+              <td>${o.phone || ''}</td>
+              <td>${items.length}</td>
+              <td>₹${Number(o.total || 0).toLocaleString('en-IN')}</td>
+              <td>${o.payment || ''}</td>
+              <td>${o.status || 'pending'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+
+      <div class="footer">Generated by StitchCraft Admin Panel</div>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
 }

@@ -458,3 +458,280 @@ async function markPaymentFailed() {
   closeScreenshotModal();
   renderAdminOrders();
 }
+
+// ============ TABS ============
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tabProducts').style.display = tab === 'products' ? 'block' : 'none';
+  document.getElementById('tabBilling').style.display = tab === 'billing' ? 'block' : 'none';
+  document.getElementById('tabInventory').style.display = tab === 'inventory' ? 'block' : 'none';
+  event.target.closest('.admin-tab').classList.add('active');
+  if (tab === 'billing') clearBill();
+  if (tab === 'inventory') renderInventory();
+}
+
+// ============ BILLING ============
+let billItems = [];
+let currentBillProduct = null;
+
+function searchBillProduct(query) {
+  const results = document.getElementById('billProductResults');
+  if (!query || query.length < 2) { results.innerHTML = ''; return; }
+  const q = query.toLowerCase();
+  const matches = products.filter(p =>
+    (p.name || '').toLowerCase().includes(q) ||
+    (p.category || '').toLowerCase().includes(q) ||
+    (p.brand || '').toLowerCase().includes(q)
+  ).slice(0, 6);
+  results.innerHTML = matches.length ? matches.map(p => `
+    <div class="bill-search-item" onclick="selectBillProduct(${p.id})">
+      <strong>${escapeHtml(p.name)}</strong>
+      <small>${escapeHtml(p.category)} | ₹${Number(p.price || 0).toLocaleString()}</small>
+      <span class="bill-stock-badge ${getTotalStock(p) > 0 ? 'in-stock' : 'out-stock'}">
+        ${getTotalStock(p) > 0 ? 'In Stock' : 'Out of Stock'}
+      </span>
+    </div>
+  `).join('') : '<div class="bill-search-empty">No products found</div>';
+}
+
+function selectBillProduct(id) {
+  const product = products.find(p => p.id === id);
+  if (!product) return;
+  currentBillProduct = product;
+  document.getElementById('billProductSearch').value = product.name;
+  document.getElementById('billProductResults').innerHTML = '';
+  const defaultSize = Array.isArray(product.sizes) && product.sizes.length ? product.sizes[0] : 'One Size';
+  const qty = 1;
+  addBillItem(product, defaultSize, qty);
+}
+
+function getTotalStock(product) {
+  if (!product || !product.stock) return 0;
+  return Object.values(product.stock).reduce((s, v) => s + (parseInt(v, 10) || 0), 0);
+}
+
+function addBillItem(product, size, qty) {
+  if (getTotalStock(product) <= 0) { showToast('Product out of stock!'); return; }
+  const existing = billItems.find(i => i.productId === product.id && i.size === size);
+  if (existing) {
+    if (existing.qty >= (product.stock[size] || 0)) { showToast('Not enough stock!'); return; }
+    existing.qty += qty;
+  } else {
+    billItems.push({ productId: product.id, name: product.name, size, qty, price: product.price || 0, img: product.img || '' });
+  }
+  renderBillItems();
+  document.getElementById('billProductSearch').value = '';
+  currentBillProduct = null;
+}
+
+function renderBillItems() {
+  const container = document.getElementById('billItems');
+  if (!container) return;
+  if (!billItems.length) { container.innerHTML = '<p class="bill-empty">Add products to create a bill</p>'; updateBillTotals(); return; }
+  container.innerHTML = billItems.map((item, i) => `
+    <div class="bill-item">
+      <img src="${item.img || 'https://via.placeholder.com/40'}" alt="${escapeHtml(item.name)}" onerror="this.src='https://via.placeholder.com/40'">
+      <div class="bill-item-info">
+        <strong>${escapeHtml(item.name)}</strong>
+        <small>Size: ${item.size} | ₹${Number(item.price || 0).toLocaleString()} × ${item.qty}</small>
+      </div>
+      <div class="bill-item-qty">
+        <button onclick="updateBillItemQty(${i}, -1)">-</button>
+        <span>${item.qty}</span>
+        <button onclick="updateBillItemQty(${i}, 1)">+</button>
+      </div>
+      <div class="bill-item-total">₹${Number(item.price * item.qty || 0).toLocaleString()}</div>
+      <button class="bill-item-remove" onclick="removeBillItem(${i})"><i class="fas fa-times"></i></button>
+    </div>
+  `).join('');
+  updateBillTotals();
+}
+
+function updateBillItemQty(index, delta) {
+  const item = billItems[index];
+  if (!item) return;
+  const product = products.find(p => p.id === item.productId);
+  if (!product) return;
+  const newQty = item.qty + delta;
+  if (newQty < 1) return;
+  if (newQty > (product.stock[item.size] || 0)) { showToast('Not enough stock!'); return; }
+  item.qty = newQty;
+  renderBillItems();
+}
+
+function removeBillItem(index) {
+  billItems.splice(index, 1);
+  renderBillItems();
+}
+
+function updateBillTotals() {
+  const subtotal = billItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const discountPct = parseFloat(document.getElementById('billDiscount')?.value) || 0;
+  const discountAmt = subtotal * discountPct / 100;
+  const afterDiscount = subtotal - discountAmt;
+  const gst = afterDiscount * 0.18;
+  const total = afterDiscount + gst;
+  document.getElementById('billSubtotal').textContent = '₹' + subtotal.toLocaleString();
+  document.getElementById('billGST').textContent = '₹' + gst.toFixed(0).toLocaleString();
+  document.getElementById('billDiscountAmt').textContent = '-₹' + discountAmt.toFixed(0).toLocaleString();
+  document.getElementById('billTotal').textContent = '₹' + total.toFixed(0).toLocaleString();
+}
+
+function clearBill() {
+  billItems = [];
+  document.getElementById('billCustomerName').value = '';
+  document.getElementById('billCustomerPhone').value = '';
+  document.getElementById('billDiscount').value = '0';
+  document.getElementById('billPaymentMethod').value = 'cash';
+  renderBillItems();
+}
+
+function generateBill() {
+  if (!billItems.length) { showToast('Add items to generate bill'); return; }
+  const customerName = document.getElementById('billCustomerName').value.trim() || 'Walk-in Customer';
+  const customerPhone = document.getElementById('billCustomerPhone').value.trim() || '-';
+  const subtotal = billItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const discountPct = parseFloat(document.getElementById('billDiscount')?.value) || 0;
+  const discountAmt = subtotal * discountPct / 100;
+  const afterDiscount = subtotal - discountAmt;
+  const gst = afterDiscount * 0.18;
+  const total = afterDiscount + gst;
+  const paymentMethod = document.getElementById('billPaymentMethod').value;
+  const paymentLabels = { cash: 'Cash', upi: 'UPI', card: 'Card', mixed: 'Mixed (Cash + UPI)' };
+  const billNo = 'INV' + Date.now().toString().slice(-8);
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+  document.getElementById('billPrintNo').textContent = billNo;
+  document.getElementById('billPrintDate').textContent = dateStr + ' ' + timeStr;
+  document.getElementById('billPrintCustomer').textContent = customerName;
+  document.getElementById('billPrintPhone').textContent = customerPhone;
+  document.getElementById('billPrintItems').innerHTML = billItems.map((item, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${item.size}</td>
+      <td>${item.qty}</td>
+      <td>₹${Number(item.price || 0).toLocaleString()}</td>
+      <td>₹${Number(item.price * item.qty || 0).toLocaleString()}</td>
+    </tr>
+  `).join('');
+  document.getElementById('billPrintSubtotal').textContent = '₹' + subtotal.toLocaleString();
+  document.getElementById('billPrintGST').textContent = '₹' + gst.toFixed(0).toLocaleString();
+  document.getElementById('billPrintDiscount').textContent = '-₹' + discountAmt.toFixed(0).toLocaleString();
+  document.getElementById('billPrintTotal').textContent = '₹' + total.toFixed(0).toLocaleString();
+  document.getElementById('billPrintPayment').textContent = paymentLabels[paymentMethod];
+
+  // Deduct stock
+  billItems.forEach(item => {
+    const product = products.find(p => p.id === item.productId);
+    if (product && product.stock && product.stock[item.size] != null) {
+      product.stock[item.size] = Math.max(0, (parseInt(product.stock[item.size], 10) || 0) - item.qty);
+    }
+  });
+  saveCatalog();
+
+  document.getElementById('billPrintModal').classList.add('active');
+}
+
+function closeBillPrint() {
+  document.getElementById('billPrintModal').classList.remove('active');
+}
+
+function printBill() {
+  const printContent = document.getElementById('billPrintContent').innerHTML;
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>StitchCraft Bill</title>
+      <meta charset="UTF-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; font-size: 14px; }
+        .bill-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+        .bill-logo { font-size: 28px; font-weight: bold; color: #2d5a27; }
+        .bill-logo i { margin-right: 8px; }
+        .bill-tagline { color: #666; font-size: 12px; margin: 5px 0; }
+        .bill-address, .bill-contact { font-size: 12px; color: #555; }
+        .bill-info { margin: 15px 0; display: flex; justify-content: space-between; }
+        .bill-info-row { display: flex; gap: 30px; }
+        .bill-items-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .bill-items-table th { background: #f0f0f0; padding: 8px; border: 1px solid #ddd; text-align: left; }
+        .bill-items-table td { padding: 8px; border: 1px solid #ddd; }
+        .bill-items-table th:last-child, .bill-items-table td:last-child { text-align: right; }
+        .bill-items-table th:nth-child(3),
+        .bill-items-table td:nth-child(3),
+        .bill-items-table th:nth-child(4),
+        .bill-items-table td:nth-child(4) { text-align: center; }
+        .bill-totals { margin-left: auto; width: 250px; }
+        .bill-total-row { display: flex; justify-content: space-between; padding: 5px 0; }
+        .bill-total-row.grand { font-size: 18px; font-weight: bold; border-top: 2px solid #333; margin-top: 5px; padding-top: 10px; color: #2d5a27; }
+        .bill-payment-info { margin: 15px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+        .bill-footer { text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd; }
+        .bill-footer p:first-child { font-size: 16px; font-weight: bold; color: #2d5a27; }
+        .bill-footer-note { font-size: 11px; color: #888; margin-top: 5px; }
+        .bill-actions-print { display: none; }
+        @media print { .bill-actions-print { display: none !important; } }
+      </style>
+    </head>
+    <body>${printContent}</body>
+    </html>
+  `);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+}
+
+// ============ INVENTORY ============
+function renderInventory() {
+  const tbody = document.getElementById('inventoryTableBody');
+  if (!tbody) return;
+  const catFilter = document.getElementById('inventoryCategoryFilter')?.value || 'all';
+  const stockFilter = document.getElementById('inventoryStockFilter')?.value || 'all';
+  let filtered = products.filter(p => {
+    if (catFilter !== 'all' && p.category !== catFilter) return false;
+    const total = getTotalStock(p);
+    if (stockFilter === 'low' && total >= 10) return false;
+    if (stockFilter === 'out' && total > 0) return false;
+    if (stockFilter === 'available' && total <= 0) return false;
+    return true;
+  });
+  tbody.innerHTML = filtered.length ? filtered.map(p => {
+    const total = getTotalStock(p);
+    const sizes = Array.isArray(p.sizes) ? p.sizes : ['One Size'];
+    const sizeStock = sizes.map(s => `${s}: ${p.stock[s] || 0}`).join(', ');
+    const statusColor = total === 0 ? '#ef4444' : total < 10 ? '#f59e0b' : '#10b981';
+    const statusText = total === 0 ? 'Out of Stock' : total < 10 ? 'Low Stock' : 'In Stock';
+    return `<tr>
+      <td><strong>${escapeHtml(p.name || '')}</strong><br><small style="color:var(--text-light)">₹${Number(p.price || 0).toLocaleString()}</small></td>
+      <td>${escapeHtml(p.category || '')}</td>
+      <td><strong style="color:${statusColor}">${total}</strong></td>
+      <td><small>${escapeHtml(sizeStock)}</small></td>
+      <td><span style="color:${statusColor};font-weight:600">${statusText}</span></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:1.5rem">No products found</td></tr>';
+  // Populate category filter
+  const catSelect = document.getElementById('inventoryCategoryFilter');
+  if (catSelect && catSelect.options.length <= 1) {
+    const cats = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
+    cats.forEach(c => catSelect.add(new Option(c, c)));
+  }
+}
+
+function exportInventory() {
+  let csv = 'Product,Category,Price,Total Stock,Sizes\n';
+  products.forEach(p => {
+    const total = getTotalStock(p);
+    const sizes = Array.isArray(p.sizes) ? p.sizes.map(s => `${s}:${p.stock[s] || 0}`).join(';') : '';
+    csv += `"${p.name || ''}","${p.category || ''}",${p.price || 0},${total},"${sizes}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'stitchcraft_inventory_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}

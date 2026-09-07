@@ -38,46 +38,144 @@
   <main class="admin-wrap">
     <div class="stat-grid" id="statGrid"></div>
 
-    <div class="toolbar">
-      <div class="toolbar-search">
-        <i class="fas fa-search"></i>
-        <input type="text" id="adminSearch" placeholder="Search products..." oninput="adminSearchChanged(this.value)">
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchAdminTab('products')"><i class="fas fa-box"></i> Products</button>
+      <button class="admin-tab" onclick="switchAdminTab('billing')"><i class="fas fa-receipt"></i> Billing</button>
+      <button class="admin-tab" onclick="switchAdminTab('inventory')"><i class="fas fa-warehouse"></i> Inventory</button>
+    </div>
+
+    <!-- Products Tab -->
+    <div id="tabProducts">
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <i class="fas fa-search"></i>
+          <input type="text" id="adminSearch" placeholder="Search products..." oninput="adminSearchChanged(this.value)">
+        </div>
+        <select id="adminCategoryFilter" onchange="adminCategoryChanged(this.value)">
+          <option value="all">All Categories</option>
+        </select>
+        <div class="toolbar-spacer"></div>
+        <button class="btn btn-outline btn-sm" onclick="openSettingsModal()"><i class="fas fa-cog"></i> Settings</button>
+        <button class="btn btn-outline btn-sm" onclick="resetAllProducts()"><i class="fas fa-rotate-left"></i> Reset to Defaults</button>
+        <button class="btn btn-outline btn-sm" id="pushCloudBtn" style="display:none" onclick="pushLocalToCloud()"><i class="fas fa-cloud-arrow-up"></i> Push Local to Cloud</button>
+        <button class="btn btn-primary btn-sm" onclick="openProductForm()"><i class="fas fa-plus"></i> Add Product</button>
       </div>
-      <select id="adminCategoryFilter" onchange="adminCategoryChanged(this.value)">
-        <option value="all">All Categories</option>
-      </select>
-      <div class="toolbar-spacer"></div>
-      <button class="btn btn-outline btn-sm" onclick="openSettingsModal()"><i class="fas fa-cog"></i> Settings</button>
-      <button class="btn btn-outline btn-sm" onclick="resetAllProducts()"><i class="fas fa-rotate-left"></i> Reset to Defaults</button>
-      <button class="btn btn-outline btn-sm" id="pushCloudBtn" style="display:none" onclick="pushLocalToCloud()"><i class="fas fa-cloud-arrow-up"></i> Push Local to Cloud</button>
-      <button class="btn btn-primary btn-sm" onclick="openProductForm()"><i class="fas fa-plus"></i> Add Product</button>
-    </div>
 
-    <div class="table-wrap">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Category</th>
-            <th>Price</th>
-            <th>Stock (per size)</th>
-            <th>Status</th>
-            <th class="th-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="adminTableBody"></tbody>
-      </table>
-    </div>
-    <p class="admin-hint"><i class="fas fa-info-circle"></i> Stock changes save instantly to this browser and appear in the shop right away. Orders placed in the shop reduce stock automatically.</p>
-
-    <div id="ordersSection" style="display:none">
-      <h3 class="section-title-sm"><i class="fas fa-receipt"></i> Recent Orders</h3>
       <div class="table-wrap">
         <table class="admin-table">
           <thead>
-            <tr><th>Order</th><th>Items</th><th>Customer</th><th>Total</th></tr>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock (per size)</th>
+              <th>Status</th>
+              <th class="th-actions">Actions</th>
+            </tr>
           </thead>
-          <tbody id="adminOrdersBody"></tbody>
+          <tbody id="adminTableBody"></tbody>
+        </table>
+      </div>
+      <p class="admin-hint"><i class="fas fa-info-circle"></i> Stock changes save instantly to this browser and appear in the shop right away. Orders placed in the shop reduce stock automatically.</p>
+
+      <div id="ordersSection" style="display:none">
+        <h3 class="section-title-sm"><i class="fas fa-receipt"></i> Recent Orders</h3>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Order</th><th>Items</th><th>Customer</th><th>Total</th></tr>
+            </thead>
+            <tbody id="adminOrdersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Billing Tab -->
+    <div id="tabBilling" style="display:none">
+      <div class="billing-container">
+        <div class="billing-left">
+          <h3><i class="fas fa-file-invoice"></i> New Bill</h3>
+          <div class="billing-customer">
+            <input type="text" id="billCustomerName" placeholder="Customer Name">
+            <input type="tel" id="billCustomerPhone" placeholder="Phone Number">
+          </div>
+          <div class="billing-product-search">
+            <input type="text" id="billProductSearch" placeholder="Search product to add..." oninput="searchBillProduct(this.value)">
+            <div id="billProductResults" class="bill-search-results"></div>
+          </div>
+          <div id="billItems" class="bill-items"></div>
+        </div>
+        <div class="billing-right">
+          <h3><i class="fas fa-calculator"></i> Bill Summary</h3>
+          <div class="bill-summary">
+            <div class="bill-summary-row">
+              <span>Subtotal</span>
+              <span id="billSubtotal">₹0</span>
+            </div>
+            <div class="bill-summary-row">
+              <span> GST (18%)</span>
+              <span id="billGST">₹0</span>
+            </div>
+            <div class="bill-summary-row discount-row">
+              <span>Discount</span>
+              <span>
+                <input type="number" id="billDiscount" value="0" min="0" oninput="updateBillTotals()"> %
+              </span>
+            </div>
+            <div class="bill-summary-row discount-amount">
+              <span></span>
+              <span id="billDiscountAmt">-₹0</span>
+            </div>
+            <div class="bill-summary-row grand-total">
+              <span>Total</span>
+              <span id="billTotal">₹0</span>
+            </div>
+          </div>
+          <div class="bill-payment">
+            <label>Payment Method</label>
+            <select id="billPaymentMethod">
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="card">Card</option>
+              <option value="mixed">Mixed (Cash + UPI)</option>
+            </select>
+          </div>
+          <div class="bill-actions">
+            <button class="btn btn-outline" onclick="clearBill()"><i class="fas fa-trash"></i> Clear</button>
+            <button class="btn btn-primary" onclick="generateBill()"><i class="fas fa-print"></i> Generate Bill</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Tab -->
+    <div id="tabInventory" style="display:none">
+      <h3><i class="fas fa-warehouse"></i> Inventory Stock</h3>
+      <div class="inventory-filters">
+        <select id="inventoryCategoryFilter" onchange="renderInventory()">
+          <option value="all">All Categories</option>
+        </select>
+        <select id="inventoryStockFilter" onchange="renderInventory()">
+          <option value="all">All Stock Levels</option>
+          <option value="low">Low Stock (&lt;10)</option>
+          <option value="out">Out of Stock</option>
+          <option value="available">In Stock</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="exportInventory()"><i class="fas fa-download"></i> Export</button>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Total Stock</th>
+              <th>Size-wise Stock</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -156,6 +254,59 @@
         <p id="paymentStatusText" style="margin-bottom: 1rem; font-weight: 600;"></p>
         <button class="btn btn-outline" onclick="markPaymentFailed()"><i class="fas fa-times-circle"></i> Mark as Failed</button>
         <button class="btn btn-primary" onclick="markPaymentVerified()"><i class="fas fa-check-circle"></i> Verify Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bill Print Modal -->
+  <div class="admin-modal" id="billPrintModal">
+    <div class="admin-modal-box bill-print-box" id="billPrintContent">
+      <div class="bill-header">
+        <div class="bill-logo"><i class="fas fa-seedling"></i> StitchCraft</div>
+        <p class="bill-tagline">Quality Garments Since 2010</p>
+        <p class="bill-address">123 Fashion Street, Mumbai, Maharashtra - 400001</p>
+        <p class="bill-contact">Ph: +91 9876543210 | Email: info@stitchcraft.in</p>
+      </div>
+      <div class="bill-info">
+        <div class="bill-info-row">
+          <span><strong>Bill No:</strong> <span id="billPrintNo">--</span></span>
+          <span><strong>Date:</strong> <span id="billPrintDate">--</span></span>
+        </div>
+        <div class="bill-info-row">
+          <span><strong>Customer:</strong> <span id="billPrintCustomer">--</span></span>
+          <span><strong>Phone:</strong> <span id="billPrintPhone">--</span></span>
+        </div>
+      </div>
+      <table class="bill-items-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item</th>
+            <th>Size</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="billPrintItems"></tbody>
+      </table>
+      <div class="bill-totals">
+        <div class="bill-total-row"><span>Subtotal</span><span id="billPrintSubtotal">₹0</span></div>
+        <div class="bill-total-row"><span>GST (18%)</span><span id="billPrintGST">₹0</span></div>
+        <div class="bill-total-row"><span>Discount</span><span id="billPrintDiscount">-₹0</span></div>
+        <div class="bill-total-row grand"><span>GRAND TOTAL</span><span id="billPrintTotal">₹0</span></div>
+      </div>
+      <div class="bill-payment-info">
+        <span><strong>Payment:</strong> <span id="billPrintPayment">--</span></span>
+      </div>
+      <div class="bill-footer">
+        <p>Thank you for shopping with StitchCraft!</p>
+        <p class="bill-footer-note">Goods once sold will not be exchanged or returned.</p>
+        <p class="bill-footer-note">Please keep this bill for future reference.</p>
+      </div>
+      <div class="bill-actions-print">
+        <button class="btn btn-outline" onclick="closeBillPrint()"><i class="fas fa-times"></i> Close</button>
+        <button class="btn btn-primary" onclick="printBill()"><i class="fas fa-print"></i> Print Bill</button>
       </div>
     </div>
   </div>

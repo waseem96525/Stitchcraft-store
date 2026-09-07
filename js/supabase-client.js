@@ -179,6 +179,10 @@ async function dbCreateOrder(order) {
     pincode: order.pincode || '',
     payment: order.payment || '',
     pickup_store: order.pickupStore || null,
+    payment_screenshot: order.payment_screenshot || null,
+    payment_verified: order.payment_verified || false,
+    status: order.status || 'pending',
+    status_history: order.statusHistory || [],
   };
   const { error } = await supa.from('orders').insert(row);
   if (error) return { error: error.message };

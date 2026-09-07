@@ -30,4 +30,4 @@ jobs:
           echo "Installing Supabase CLI..."
           npm install -g supabase
           echo "Deploying function..."
-          npx supabase functions deploy send-order-confirmation --project-ref $PROJECT_REF --no-verify-jwts 2>&1
+          npx supabase functions deploy send-order-confirmation --project-ref $PROJECT_REF --no-verify-jwt 2>&1

@@ -1107,8 +1107,8 @@ function buildCloudOrder(orderId) {
     name: val('fullName'), phone: val('phone'), address: val('address'),
     city: val('city'), state: val('state'), pincode: val('pincode'),
     payment: paymentMethod,
-    paymentScreenshot: uploadedScreenshotData || null,
-    paymentVerified: paymentMethod === 'cod' ? true : false,
+    payment_screenshot: uploadedScreenshotData || null,
+    payment_verified: paymentMethod === 'cod' ? true : false,
     pickupStore,
     status: 'pending',
     statusHistory: [

@@ -61,6 +61,12 @@ begin
   if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'status_history') then
     alter table public.orders add column status_history jsonb not null default '[]';
   end if;
+  if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'payment_screenshot') then
+    alter table public.orders add column payment_screenshot text;
+  end if;
+  if NOT exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'payment_verified') then
+    alter table public.orders add column payment_verified boolean not null default false;
+  end if;
 end
 $$;
 

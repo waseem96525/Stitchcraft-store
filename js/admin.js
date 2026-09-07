@@ -346,8 +346,8 @@ async function renderAdminOrders() {
     const statusOptions = statuses.map(s =>
       `<option value="${s}" ${s === status ? 'selected' : ''}>${statusLabels[s]}</option>`
     ).join('');
-    const paymentVerified = o.paymentVerified;
-    const hasScreenshot = !!o.paymentScreenshot;
+    const paymentVerified = o.payment_verified;
+    const hasScreenshot = !!o.payment_screenshot;
     const paymentStatusHtml = o.payment === 'cod'
       ? '<span style="color:#10b981"><i class="fas fa-check-circle"></i> COD</span>'
       : hasScreenshot
@@ -386,7 +386,7 @@ function showAdminOrderDetail(orderCode) {
     </div>`).join('');
     const paymentLabels = { upi: 'UPI / GPay / PhonePe', cod: 'Cash on Delivery', card: 'Credit/Debit Card', emi: 'No Cost EMI' };
     const paymentStatus = order.payment === 'cod' ? 'COD - No verification needed' :
-      (order.paymentVerified ? 'Payment Verified' : 'Payment Pending Verification');
+      (order.payment_verified ? 'Payment Verified' : 'Payment Pending Verification');
     alert(`ORDER DETAILS\n\nOrder: #${order.order_code}\nDate: ${order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}\nStatus: ${order.status || 'pending'}\n\nITEMS:\n${items.map(i => `- ${i.name || 'Product'} (${i.size || 'One Size'}) x${i.qty} = ₹${(i.price || 0) * i.qty}`).join('\n')}\n\nSUBTOTAL: ₹${order.subtotal || 0}\nSHIPPING: ${order.shipping == 0 ? 'Free' : '₹' + order.shipping}\nDISCOUNT: -₹${order.discount || 0}\nTOTAL: ₹${order.total || 0}\n\nPAYMENT: ${paymentLabels[order.payment] || order.payment || 'N/A'}\nPAYMENT STATUS: ${paymentStatus}\n\n${order.pickupStore ? 'PICKUP: ' + order.pickupStore : 'DELIVERY:\n' + (order.name || '') + '\n' + (order.address || '') + '\n' + (order.city || '') + ', ' + (order.state || '') + ' - ' + (order.pincode || '') + '\nPhone: ' + (order.phone || '')}`);
   });
 }
@@ -421,11 +421,11 @@ function openScreenshotModal(orderCode) {
     if (!order) { showToast('Order not found'); return; }
     const img = document.getElementById('screenshotImage');
     const statusText = document.getElementById('paymentStatusText');
-    if (order.paymentScreenshot) {
-      img.src = order.paymentScreenshot;
+    if (order.payment_screenshot) {
+      img.src = order.payment_screenshot;
       img.style.display = 'block';
-      statusText.textContent = `Payment Status: ${order.paymentVerified ? 'VERIFIED' : 'PENDING VERIFICATION'}`;
-      statusText.style.color = order.paymentVerified ? '#10b981' : '#f59e0b';
+      statusText.textContent = `Payment Status: ${order.payment_verified ? 'VERIFIED' : 'PENDING VERIFICATION'}`;
+      statusText.style.color = order.payment_verified ? '#10b981' : '#f59e0b';
     } else {
       img.style.display = 'none';
       statusText.textContent = 'No payment screenshot uploaded';
@@ -442,7 +442,7 @@ function closeScreenshotModal() {
 
 async function markPaymentVerified() {
   if (!currentScreenshotOrder || !supa) return;
-  const { error } = await supa.from('orders').update({ paymentVerified: true }).eq('order_code', currentScreenshotOrder);
+  const { error } = await supa.from('orders').update({ payment_verified: true }).eq('order_code', currentScreenshotOrder);
   if (error) { showToast('Failed: ' + error.message); return; }
   showToast('Payment verified!');
   closeScreenshotModal();
